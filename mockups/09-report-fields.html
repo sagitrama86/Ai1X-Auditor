@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Report Fields</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.main{margin-left:260px;padding:32px 40px}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:#8b949e;margin-bottom:20px}
+.breadcrumb a{color:#58a6ff;text-decoration:none}
+.page-header{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}
+.page-header-left h1{font-size:24px;font-weight:600;margin-bottom:6px}
+.page-header-left p{color:#8b949e;font-size:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:#1f6feb;color:#fff}
+.btn-outline{background:transparent;color:#8b949e;border:1px solid #30363d}
+.fields-table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden}
+.fields-table th{text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;background:#0d1117}
+.fields-table td{padding:10px 14px;border-bottom:1px solid #21262d;font-size:13px}
+.fields-table tbody tr{cursor:pointer;transition:background .15s}
+.fields-table tbody tr:hover{background:#1f293744}
+.fields-table tbody tr.selected{background:#1f6feb11}
+.field-name{font-weight:600}
+.content-layout{display:grid;grid-template-columns:1fr 420px;gap:24px}
+.detail-panel{background:#161b22;border:1px solid #30363d;border-radius:12px;height:fit-content;position:sticky;top:32px}
+.detail-header{padding:16px 20px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between}
+.detail-header h3{font-size:16px;font-weight:600}
+.detail-body{padding:0;max-height:78vh;overflow-y:auto}
+.ms{padding:14px 20px;border-bottom:1px solid #21262d}.ms:last-child{border-bottom:none}
+.ms-title{font-size:11px;text-transform:uppercase;color:#8b949e;margin-bottom:10px;font-weight:600;letter-spacing:.5px}
+.mr{display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0}
+.ml{font-size:12px;color:#8b949e;min-width:120px}
+.mv{font-size:12px;color:#c9d1d9;text-align:right;flex:1}
+.mv code{background:#0d1117;padding:2px 6px;border-radius:4px;font-size:11px}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;margin:1px}
+.tag.b{background:#1f6feb22;color:#58a6ff}.tag.o{background:#d2992222;color:#d29922}
+.sql-block{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 12px;font-family:'SF Mono',monospace;font-size:11px;line-height:1.6;color:#c9d1d9;white-space:pre-wrap;margin-top:6px}
+.inp{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e1e4e8;font-size:12px;padding:4px 8px}
+.section-title{font-size:18px;font-weight:600;margin-top:32px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.sec-box{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px 20px}
+.sec-desc{font-size:12px;color:#8b949e;margin-bottom:10px}
+.dt-select{background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#e1e4e8;font-size:11px;padding:2px 6px;cursor:pointer}
+.add-btn{margin-top:10px;padding:6px 14px;background:transparent;border:1px dashed #30363d;border-radius:8px;color:#8b949e;font-size:12px;cursor:pointer}
+.cf-table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden}
+.cf-table th{text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;background:#0d1117}
+.cf-table td{padding:10px 14px;border-bottom:1px solid #21262d;font-size:13px}
+.del-btn{background:none;border:none;color:#f85149;cursor:pointer;font-size:14px}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item"onclick="location='16-schema.html'">🗄️ Schema</div><div class="nav-item"onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item active" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
+      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW — 23 tables</div></div>
+</div>
+<div class="main">
+  <div class="breadcrumb"><a href="05-home-loaded.html">Home</a> / <a href="08-reports.html">Reports</a> / <span>MeasureList — Fields</span></div>
+  <div class="page-header">
+    <div class="page-header-left"><h1>MeasureList — Fields (12)</h1><p>Click any row to view & edit metadata. Data types are editable.</p></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-outline" onclick="location='06-ai-chat.html'">+ Add Field via Chat</button><button class="btn btn-primary" onclick="location='07-generate-sql.html'">⚡ Generate SQL</button></div>
+  </div>
+  <div class="content-layout">
+    <div>
+      <table class="fields-table">
+        <thead><tr><th>#</th><th>Display Name</th><th>Data Type</th><th>Field Length</th><th>Allow NULL</th><th>Value Validation</th></tr></thead>
+        <tbody id="ftbody"></tbody>
+      </table>
+      <div class="section-title">🔗 Cross-Field Validation</div>
+      <div class="sec-box"><div class="sec-desc">Rules comparing values between columns within this report.</div><div id="cfbody-wrap"></div><button class="add-btn" onclick="addCF()">+ Add cross-field rule</button></div>
+      <div class="section-title">📊 Group By</div>
+      <div class="sec-box"><div class="sec-desc">Columns defining the GROUP BY clause. Drag to reorder.</div><div id="gb-list"></div><button class="add-btn" onclick="addGB()">+ Add column</button></div>
+      <div class="section-title">↕️ Sort By</div>
+      <div class="sec-box"><div class="sec-desc">Columns used in ORDER BY. Priority determines sort order.</div><div id="sb-list"></div><button class="add-btn" onclick="addSB()">+ Add column</button></div>
+      <div class="section-title">🔑 Composite Key</div>
+      <div class="sec-box"><div class="sec-desc">Columns that together uniquely identify each row. Used to detect duplicates.</div><div id="ck-list"></div></div>
+      <div class="section-title">🔄 Cross-Report Validation</div>
+      <div class="sec-box"><div class="sec-desc">Validate that values in this report match values in other reports.</div><div id="cr-list"></div><button class="add-btn" onclick="addCR()">+ Add cross-report rule</button></div>
+    </div>
+    <div class="detail-panel">
+      <div class="detail-header"><h3 id="dh">📋 Select a field</h3></div>
+      <div class="detail-body" id="dbody"><div class="ms" style="color:#484f58;text-align:center;padding:40px">Click a row on the left</div></div>
+    </div>
+  </div>
+</div>
+<script>
+const DT=['String','Integer','Decimal','Date','Datetime','Percentage'];
+const DATE_FMT=['YYYY-MM-DD','MM/DD/YYYY','DD/MM/YYYY','DD-MON-YYYY','YYYYMMDD','MM/YYYY','YYYY'];
+const DTIME_FMT=['YYYY-MM-DD HH:MM:SS','YYYY-MM-DDTHH:MM:SS','YYYY-MM-DD HH:MM:SS.fff','MM/DD/YYYY HH:MM:SS AM','EPOCH','EPOCH_MS'];
+const AGGS=['','SUM','COUNT','AVG','MIN','MAX'];
+const OTHER_REPORTS=['VBC','Provider Detail','Gaps in Care','Member Summary'];
+
+const F=[
+{id:1,name:"Entity",tolerance:"exact",nullEqualsEmpty:true,nullEqualsZero:false,type:"String",agg:"—",allowNull:false,check:"length",sev:"error",rule:"1|100",sql:"A.Subnetwork",desc:"Subnetwork entity from attribution model.",tables:"factqualityreport",cols:"A.Subnetwork",cte:"source_data",decimals:"—",pct:"No",nullDisp:"''",suffix:"—",dateFormat:"NA",thousandSep:"No"},
+{id:2,name:"Measures",tolerance:"exact",nullEqualsEmpty:true,nullEqualsZero:false,type:"String",agg:"—",allowNull:false,check:"regex",sev:"warning",rule:"^[A-Z]{2,5}-.*",sql:"CONCAT(\n  CASE WHEN KVM.KEYVALUE IS NULL\n    THEN M.SUBMEASURECODE\n    ELSE KVM.KEYVALUE END,\n  IIF(M.STARINDICATOR='Y','*',''),\n  ' ', ...)",desc:"Concatenated measure code + name with star and inverse indicators.",tables:"measuredetails, keyvaluemapping",cols:"M.SUBMEASURECODE, M.name, KVM.KEYVALUE",cte:"source_data",decimals:"—",pct:"No",nullDisp:"''",suffix:"—",dateFormat:"NA",thousandSep:"No"},
+{id:3,name:"Submission",tolerance:"exact",nullEqualsEmpty:true,nullEqualsZero:false,type:"String",agg:"—",allowNull:false,check:"length",sev:"error",rule:"1|200",sql:"A.NCQA_Submission_ID_Name",desc:"NCQA submission identifier.",tables:"factqualityreport",cols:"A.NCQA_Submission_ID_Name",cte:"source_data",decimals:"—",pct:"No",nullDisp:"''",suffix:"—",dateFormat:"NA",thousandSep:"No"},
+{id:4,name:"Compliance (%)",tolerance:"0.01",nullEqualsEmpty:false,nullEqualsZero:false,type:"Decimal",agg:"SUM/SUM",allowNull:false,check:"range",sev:"error",rule:"0|100",sql:"CASE WHEN NCQAInvertedFlag='Y' THEN\n  ROUND(SUM(NonCompliant)*100\n    /NULLIF(SUM(Denominator),0),2)\nELSE\n  ROUND(SUM(Compliant)*100\n    /NULLIF(SUM(Denominator),0),2)\nEND",desc:"Compliance %. Uses NonCompliant when NCQAInvertedFlag='Y'.",tables:"factqualityreport, measuredetails",cols:"Act_Performance_Met, Act_Performance_Not_Met",cte:"calculation_cte",decimals:"2",pct:"Yes",nullDisp:"0.00",suffix:"%",dateFormat:"NA",thousandSep:"No"},
+{id:5,name:"Denominator",tolerance:"exact",nullEqualsEmpty:false,nullEqualsZero:false,type:"Integer",agg:"SUM",allowNull:false,check:"range",sev:"error",rule:"0|999999999",sql:"SUM(Act_Performance_Met)\n  + SUM(Act_Performance_Not_Met)",desc:"Total eligible population.",tables:"factqualityreport",cols:"Act_Performance_Met, Act_Performance_Not_Met",cte:"source_data",decimals:"0",pct:"No",nullDisp:"0",suffix:"—",dateFormat:"NA",thousandSep:"Yes"},
+{id:6,name:"Compliant",tolerance:"exact",nullEqualsEmpty:false,nullEqualsZero:false,type:"Integer",agg:"SUM",allowNull:false,check:"range",sev:"error",rule:"0|999999999",sql:"SUM(A.Act_Performance_Met)",desc:"Members who met performance criteria.",tables:"factqualityreport",cols:"A.Act_Performance_Met",cte:"source_data",decimals:"0",pct:"No",nullDisp:"0",suffix:"—",dateFormat:"NA",thousandSep:"Yes"},
+{id:7,name:"Non Compliant",tolerance:"exact",nullEqualsEmpty:false,nullEqualsZero:false,type:"Integer",agg:"SUM",allowNull:false,check:"range",sev:"error",rule:"0|999999999",sql:"SUM(A.Act_Performance_Not_Met)",desc:"Members who did not meet criteria.",tables:"factqualityreport",cols:"A.Act_Performance_Not_Met",cte:"source_data",decimals:"0",pct:"No",nullDisp:"0",suffix:"—",dateFormat:"NA",thousandSep:"Yes"},
+{id:8,name:"Required Exclusion",tolerance:"exact",nullEqualsEmpty:false,nullEqualsZero:false,type:"Integer",agg:"SUM",allowNull:false,check:"range",sev:"error",rule:"0|999999999",sql:"SUM(A.reportingExclusionStatus)",desc:"Count of required exclusions.",tables:"factqualityreport",cols:"A.reportingExclusionStatus",cte:"source_data",decimals:"0",pct:"No",nullDisp:"0",suffix:"—",dateFormat:"NA",thousandSep:"Yes"},
+{id:9,name:"MRSS",tolerance:"exact",nullEqualsEmpty:true,nullEqualsZero:false,type:"String",agg:"—",allowNull:false,check:"length",sev:"warning",rule:"1|20",sql:"COALESCE(CAST(A.minimumrequiredsamplesize AS VARCHAR(20)),'-')",desc:"Minimum required sample size.",tables:"factqualityreport",cols:"A.minimumrequiredsamplesize",cte:"source_data",decimals:"—",pct:"No",nullDisp:"-",suffix:"—",dateFormat:"NA",thousandSep:"No"},
+{id:10,name:"VDE",tolerance:"exact",nullEqualsEmpty:false,nullEqualsZero:false,type:"Integer",agg:"COUNT",allowNull:true,check:"range",sev:"warning",rule:"0|999999",sql:"CASE WHEN M.measuretype='Visit'\n  THEN COUNT(A.visitSSUIDE) ...",desc:"Valid Data Error count by measure type.",tables:"factqualityreport, measuredetails",cols:"visitSSUIDE, eventSSUIDE, patientSSUIDE",cte:"source_data",decimals:"0",pct:"No",nullDisp:"-",suffix:"—",dateFormat:"NA",thousandSep:"No"},
+{id:11,name:"Current PCTL",tolerance:"exact",nullEqualsEmpty:true,nullEqualsZero:false,type:"String",agg:"CASE",allowNull:true,check:"enum",sev:"error",rule:"<25th,25th,50th,75th,90th",sql:"CASE WHEN Denominator=0 THEN NULL\n  WHEN all cutpoints=0 THEN NULL\n  ELSE /* 4-way branch */ ...\nEND",desc:"NCQA percentile ranking.",tables:"factqualityreport, measuredetails, qualitycutpoints",cols:"NCQAInvertedFlag, InverseFlag, Cutpoints",cte:"calculation_cte",decimals:"—",pct:"No",nullDisp:"NULL",suffix:"—",dateFormat:"NA",thousandSep:"No"},
+{id:12,name:"To reach (25th PCTL)",tolerance:"exact",nullEqualsEmpty:false,nullEqualsZero:false,type:"Integer",agg:"CEIL",allowNull:true,check:"range",sev:"warning",rule:"0|999999",sql:"CEIL((NULLIF(SUM(Denominator),0)*Cutpoint3/100)-SUM(Compliant))",desc:"Gap to 25th percentile.",tables:"factqualityreport, qualitycutpoints",cols:"Denominator, Compliant, Cutpoint3",cte:"calculation_cte",decimals:"0",pct:"No",nullDisp:"NULL",suffix:"—",dateFormat:"NA",thousandSep:"No"}
+];
+
+let CF=[{id:1,field:"Compliant",op:"<=",compare:"Denominator",sev:"error"},{id:2,field:"Non Compliant",op:"<=",compare:"Denominator",sev:"error"},{id:3,field:"Compliant",op:">=",compare:"Required Exclusion",sev:"warning"}];
+let cfN=4;
+let GB=[{id:1,field:'Entity',o:1},{id:2,field:'Measures',o:2},{id:3,field:'Submission',o:3},{id:4,field:'MRSS',o:4}];
+let gbN=5;
+let SB=[{id:1,field:'Entity',dir:'ASC',p:1},{id:2,field:'Submission',dir:'ASC',p:2}];
+let sbN=3;
+let CK=['Measures','Submission'];
+let DUP_CK='No',DUP_ALL='No';
+let CR=[{id:1,srcCol:'Compliant',srcAgg:'',tgtReport:'VBC',tgtCol:'Eligible Population',tgtAgg:'',matchBy:[],sev:'error'},{id:2,srcCol:'Compliant',srcAgg:'SUM',tgtReport:'VBC',tgtCol:'Numerator',tgtAgg:'',matchBy:['Measures'],sev:'error'}];
+let crN=3;
+const fn=()=>F.map(f=>f.name);
+
+function renderTable(){
+  const tb=document.getElementById('ftbody');tb.innerHTML='';
+  F.forEach(f=>{
+    const tr=document.createElement('tr');tr.onclick=()=>sel(f.id);
+    const dtO=DT.map(d=>`<option ${d===f.type?'selected':''}>${d}</option>`).join('');
+    let vr='<span style="color:#484f58">none</span>';
+    if(f.check==='range'){const c=f.sev==='error'?'#f85149':'#d29922';vr=`<span style="color:${c}">${f.rule.split('|').join(' — ')}</span>`}
+    else if(f.check==='length'){const c=f.sev==='error'?'#f85149':'#d29922';const p=f.rule.split('|');vr=`<span style="color:${c}">len ${p[0]}–${p[1]}</span>`}
+    else if(f.check==='enum'){const c=f.sev==='error'?'#f85149':'#d29922';vr=`<span style="color:${c}">${f.rule.substring(0,25)}</span>`}
+    else if(f.check==='regex'){const c=f.sev==='error'?'#f85149':'#d29922';vr=`<span style="color:${c}">${f.rule.substring(0,18)}</span>`}
+    else if(f.type==='Date'||f.type==='Datetime'){vr=`<span style="color:#58a6ff">${f.check}</span>`}
+    const fl=f.check==='length'||f.check==='range'?f.rule.split('|'):['—','—'];
+    tr.innerHTML=`<td>${f.id}</td><td class="field-name">${f.name}</td><td><select class="dt-select" onclick="event.stopPropagation()" onchange="var ff=F.find(x=>x.id===${f.id});ff.type=this.value;var d={'String':['length','0|255'],'Integer':['range','0|999999999'],'Decimal':['range','0|999999999'],'Percentage':['range','0|100'],'Date':['YYYY-MM-DD','YYYY-MM-DD'],'Datetime':['YYYY-MM-DD HH:MM:SS','YYYY-MM-DD HH:MM:SS']};ff.check=d[this.value][0];ff.rule=d[this.value][1];renderTable();setTimeout(()=>sel(${f.id}),0)">${dtO}</select></td><td><span style="font-size:11px;color:#8b949e">${fl[0]}</span> — <span style="font-size:11px;color:#c9d1d9">${fl[1]}</span></td><td style="text-align:center"><input type="checkbox" ${f.allowNull?'checked':''} onclick="event.stopPropagation();F.find(x=>x.id===${f.id}).allowNull=this.checked" style="width:16px;height:16px;accent-color:#3fb950;cursor:pointer"></td><td>${vr}</td>`;
+    tb.appendChild(tr);
+  });
+}
+function sel(id){
+  const f=F.find(x=>x.id===id);if(!f)return;
+  document.querySelectorAll('.fields-table tbody tr').forEach((r,i)=>{r.classList.toggle('selected',F[i].id===id)});
+  document.getElementById('dh').textContent='📋 '+f.name;
+  const valOpts=(()=>{const o={'String':['none','enum','regex','length'],'Integer':['none','range','enum'],'Decimal':['none','range'],'Percentage':['none','range'],'Date':DATE_FMT,'Datetime':DTIME_FMT};return(o[f.type]||['none']).map(v=>`<option value="${v}" ${f.check===v?'selected':''}>${v.replace('_',' ')}</option>`).join('');})();
+  let rHTML='';
+  if(f.check==='range'){const p=f.rule.split('|');rHTML=`<div class="mr"><span class="ml">Min Value</span><span class="mv"><input type="number" value="${p[0]}" class="inp" style="width:100px;text-align:right" onchange="F.find(x=>x.id===${f.id}).rule=this.value+'|'+this.parentElement.parentElement.nextElementSibling.querySelector('input').value;renderTable()"></span></div><div class="mr"><span class="ml">Max Value</span><span class="mv"><input type="number" value="${p[1]}" class="inp" style="width:100px;text-align:right" onchange="F.find(x=>x.id===${f.id}).rule=this.parentElement.parentElement.previousElementSibling.querySelector('input').value+'|'+this.value;renderTable()"></span></div>`}
+  else if(f.check==='length'){const p=f.rule.split('|');rHTML=`<div class="mr"><span class="ml">Min Length</span><span class="mv"><input type="number" value="${p[0]}" class="inp" style="width:80px;text-align:right" onchange="F.find(x=>x.id===${f.id}).rule=this.value+'|'+this.parentElement.parentElement.nextElementSibling.querySelector('input').value;renderTable()"></span></div><div class="mr"><span class="ml">Max Length</span><span class="mv"><input type="number" value="${p[1]}" class="inp" style="width:80px;text-align:right" onchange="F.find(x=>x.id===${f.id}).rule=this.parentElement.parentElement.previousElementSibling.querySelector('input').value+'|'+this.value;renderTable()"></span></div>`}
+  else if(f.check==='enum'){rHTML=`<div class="mr"><span class="ml">Allowed Values</span><span class="mv"><input type="text" value="${f.rule}" class="inp" style="width:200px" onchange="F.find(x=>x.id===${f.id}).rule=this.value;renderTable()"></span></div>`}
+  else if(f.check==='regex'){rHTML=`<div class="mr"><span class="ml">Pattern</span><span class="mv"><input type="text" value="${f.rule}" class="inp" style="width:200px;font-family:'SF Mono',monospace" onchange="F.find(x=>x.id===${f.id}).rule=this.value;renderTable()"></span></div>`}
+  const sc=f.sev==='error'?'#f85149':'#d29922';
+  const sB=f.check==='none'||f.type==='Date'||f.type==='Datetime'?'':`<div style="margin-top:8px;padding:8px 10px;border-radius:6px;font-size:11px;background:${sc}11;border:1px solid ${sc}33;color:${sc}">${f.sev==='error'?'✕ Error — violations FAIL':'⚠ Warning — flagged only'}</div>`;
+  const cfR=CF.filter(c=>c.field===f.name);
+  const cfH=cfR.length?cfR.map(c=>`<div class="mr"><span class="ml" style="color:${c.sev==='error'?'#f85149':'#d29922'}">${c.sev==='error'?'✕':'⚠'} ${c.op} ${c.compare}</span></div>`).join(''):'<div style="font-size:12px;color:#484f58">No cross-field rules</div>';
+  const dateFmtHTML=(f.type==='Date'||f.type==='Datetime')?`<div class="mr"><span class="ml">Date Format</span><span class="mv"><span class="tag b">${f.check}</span></span></div>`:'';
+  document.getElementById('dbody').innerHTML=`
+    <div class="ms"><div class="ms-title">Core Properties</div>
+      <div class="mr"><span class="ml">Display Name</span><span class="mv">${f.name}</span></div>
+      <div class="mr"><span class="ml">Description</span><div class="mv" style="text-align:left"><textarea class="inp" style="width:100%;min-height:50px;resize:vertical;font-family:inherit" onchange="F.find(x=>x.id===${f.id}).desc=this.value">${f.desc}</textarea></div></div>
+      <div class="mr"><span class="ml">Data Type</span><span class="mv"><span class="tag o">${f.type}</span></span></div>
+      ${dateFmtHTML}
+      <div class="mr"><span class="ml">Aggregation</span><span class="mv">${f.agg}</span></div>
+      <div class="mr"><span class="ml">Source Tables</span><span class="mv">${f.tables.split(', ').map(t=>'<span class="tag b">'+t+'</span> ').join('')}</span></div>
+      <div class="mr"><span class="ml">Source Columns</span><span class="mv">${f.cols.split(', ').map(c=>'<code>'+c+'</code> ').join('')}</span></div>
+      <div class="mr"><span class="ml">CTE Level</span><span class="mv">${f.cte}</span></div>
+    </div>
+    <div class="ms"><div class="ms-title">SQL Expression</div><div class="sql-block">${f.sql}</div></div>
+    <div class="ms"><div class="ms-title">Formatting</div>
+      <div class="mr"><span class="ml">Decimal Places</span><span class="mv"><input type="number" value="${f.decimals==='—'?'':f.decimals}" placeholder="NA" class="inp" style="width:70px;text-align:right" onchange="F.find(x=>x.id===${f.id}).decimals=this.value||'—'"></span></div>
+      <div class="mr"><span class="ml">Is Percentage</span><span class="mv"><select class="inp" style="width:80px" onchange="F.find(x=>x.id===${f.id}).pct=this.value"><option ${f.pct==='Yes'?'selected':''}>Yes</option><option ${f.pct==='No'?'selected':''}>No</option></select></span></div>
+      <div class="mr"><span class="ml">Thousand Sep</span><span class="mv"><select class="inp" style="width:80px" onchange="F.find(x=>x.id===${f.id}).thousandSep=this.value"><option ${f.thousandSep==='Yes'?'selected':''}>Yes</option><option ${f.thousandSep==='No'?'selected':''}>No</option></select></span></div>
+      <div class="mr"><span class="ml">Suffix</span><span class="mv"><input type="text" value="${f.suffix}" class="inp" style="width:80px" onchange="F.find(x=>x.id===${f.id}).suffix=this.value"></span></div>
+      <div class="mr"><span class="ml">Null Display</span><span class="mv"><input type="text" value="${f.nullDisp}" class="inp" style="width:80px" onchange="F.find(x=>x.id===${f.id}).nullDisp=this.value"></span></div>
+    </div>
+    <div class="ms"><div class="ms-title">Comparison Settings</div>
+      <div class="mr"><span class="ml">Tolerance</span><span class="mv"><select class="inp" style="width:140px" onchange="F.find(x=>x.id===${f.id}).tolerance=this.value">
+        <option value="exact" ${f.tolerance==='exact'?'selected':''}>Exact match</option>
+        <option value="0.001" ${f.tolerance==='0.001'?'selected':''}>± 0.001</option>
+        <option value="0.01" ${f.tolerance==='0.01'?'selected':''}>± 0.01</option>
+        <option value="0.1" ${f.tolerance==='0.1'?'selected':''}>± 0.1</option>
+        <option value="1" ${f.tolerance==='1'?'selected':''}>± 1</option>
+      </select></span></div>
+      <div class="mr"><span class="ml">NULL = Empty String</span><span class="mv"><select class="inp" style="width:80px" onchange="F.find(x=>x.id===${f.id}).nullEqualsEmpty=this.value==='Yes'"><option ${f.nullEqualsEmpty?'selected':''}>Yes</option><option ${!f.nullEqualsEmpty?'selected':''}>No</option></select></span></div>
+      <div class="mr"><span class="ml">NULL = Zero</span><span class="mv"><select class="inp" style="width:80px" onchange="F.find(x=>x.id===${f.id}).nullEqualsZero=this.value==='Yes'"><option ${f.nullEqualsZero?'selected':''}>Yes</option><option ${!f.nullEqualsZero?'selected':''}>No</option></select></span></div>
+    </div>
+    <div class="ms"><div class="ms-title">Value Validation</div>
+      <div class="mr"><span class="ml">Check Type</span><span class="mv"><select class="inp" style="width:180px" onchange="var v=this.value,ff=F.find(x=>x.id===${f.id});if(v==='range'){ff.check='range';ff.rule=f.type==='Percentage'?'0|100':'0|999999999';}else if(v==='length'){ff.check='length';ff.rule='0|255';}else if(v==='enum'){ff.check='enum';ff.rule='';}else if(v==='regex'){ff.check='regex';ff.rule='';}else if(v==='none'){ff.check='none';ff.rule='';}else{ff.check=v;ff.rule=v;ff.dateFormat=v;}renderTable();setTimeout(()=>sel(${f.id}),0)">${valOpts}</select></span></div>
+      ${f.check!=='none'&&f.type!=='Date'&&f.type!=='Datetime'?`<div class="mr"><span class="ml">Severity</span><span class="mv"><select class="inp" style="width:140px;color:${sc}" onchange="F.find(x=>x.id===${f.id}).sev=this.value;renderTable();sel(${f.id})"><option value="error" style="color:#f85149" ${f.sev==='error'?'selected':''}>✕ error</option><option value="warning" style="color:#d29922" ${f.sev==='warning'?'selected':''}>⚠ warning</option></select></span></div>`:''}
+      ${rHTML}${sB}
+    </div>
+    <div class="ms"><div class="ms-title">Cross-Field Rules</div>${cfH}</div>`;
+}
+function renderCF(){
+  const el=document.getElementById('cfbody-wrap');el.innerHTML='';
+  const groups={};CF.forEach(c=>{if(!groups[c.field])groups[c.field]=[];groups[c.field].push(c);});
+  Object.keys(groups).forEach(fld=>{
+    el.innerHTML+=`<div style="padding:4px 0 2px;font-weight:600;font-size:13px;color:#58a6ff;border-bottom:1px solid #30363d;margin-top:8px">${fld}</div>`;
+    groups[fld].forEach(c=>{
+      const cO=fn().map(n=>`<option ${n===c.compare?'selected':''}>${n}</option>`).join('');
+      const sc=c.sev==='error'?'#f85149':'#d29922';
+      el.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 20px;border-bottom:1px solid #21262d">
+        <span style="font-size:12px;color:#8b949e;width:120px">${c.field}</span>
+        <select class="inp" style="width:60px" onchange="CF.find(x=>x.id===${c.id}).op=this.value"><option ${c.op==='<='?'selected':''}><=</option><option ${c.op==='>='?'selected':''}>>=</option><option ${c.op==='<'?'selected':''}><</option><option ${c.op==='>'?'selected':''}>></option><option ${c.op==='=='?'selected':''}>==</option><option ${c.op==='!='?'selected':''}>!=</option></select>
+        <select class="inp" style="width:140px" onchange="CF.find(x=>x.id===${c.id}).compare=this.value;renderCF()">${cO}</select>
+        <select class="inp" style="width:100px;color:${sc}" onchange="CF.find(x=>x.id===${c.id}).sev=this.value;renderCF()"><option value="error" style="color:#f85149" ${c.sev==='error'?'selected':''}>✕ error</option><option value="warning" style="color:#d29922" ${c.sev==='warning'?'selected':''}>⚠ warning</option></select>
+        <button class="del-btn" onclick="CF=CF.filter(x=>x.id!==${c.id});renderCF()">✕</button>
+      </div>`;
+    });
+  });
+}
+function addCF(){CF.push({id:cfN++,field:fn()[0],op:'<=',compare:fn()[1],sev:'error'});renderCF();}
+
+function renderGB(){
+  const el=document.getElementById('gb-list');
+  el.innerHTML=GB.sort((a,b)=>a.o-b.o).map(g=>{
+    const o=fn().map(n=>`<option ${n===g.field?'selected':''}>${n}</option>`).join('');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #21262d"><span style="color:#484f58;font-size:14px">⠿</span><span style="color:#58a6ff;font-size:13px;font-weight:600;width:24px">${g.o}</span><select class="inp" style="width:180px" onchange="GB.find(x=>x.id===${g.id}).field=this.value">${o}</select><button class="del-btn" onclick="GB=GB.filter(x=>x.id!==${g.id});GB.forEach((x,i)=>x.o=i+1);renderGB()" style="margin-left:auto">✕</button></div>`;
+  }).join('');
+}
+function addGB(){const u=GB.map(g=>g.field);const a=fn().filter(n=>!u.includes(n));if(!a.length)return;GB.push({id:gbN++,field:a[0],o:GB.length+1});renderGB();}
+
+function renderSB(){
+  const el=document.getElementById('sb-list');
+  el.innerHTML=SB.sort((a,b)=>a.p-b.p).map(s=>{
+    const o=fn().map(n=>`<option ${n===s.field?'selected':''}>${n}</option>`).join('');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #21262d"><span style="color:#484f58;font-size:14px">⠿</span><span style="color:#58a6ff;font-size:13px;font-weight:600;width:24px">${s.p}</span><select class="inp" style="width:160px" onchange="SB.find(x=>x.id===${s.id}).field=this.value">${o}</select><select class="inp" style="width:80px" onchange="SB.find(x=>x.id===${s.id}).dir=this.value"><option ${s.dir==='ASC'?'selected':''}>ASC</option><option ${s.dir==='DESC'?'selected':''}>DESC</option></select><button class="del-btn" onclick="SB=SB.filter(x=>x.id!==${s.id});SB.forEach((x,i)=>x.p=i+1);renderSB()" style="margin-left:auto">✕</button></div>`;
+  }).join('');
+}
+function addSB(){SB.push({id:sbN++,field:fn()[0],dir:'ASC',p:SB.length+1});renderSB();}
+
+function renderCK(){
+  const el=document.getElementById('ck-list');
+  const tags=CK.map(f=>`<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:#1f6feb22;border:1px solid #1f6feb44;border-radius:8px;font-size:12px;color:#58a6ff;margin:3px">${f}<span onclick="CK=CK.filter(x=>x!=='${f}');renderCK()" style="cursor:pointer;color:#f85149;font-size:14px">✕</span></span>`).join(' + ');
+  const avail=fn().filter(n=>!CK.includes(n)).map(n=>`<option>${n}</option>`).join('');
+  el.innerHTML=`<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">${tags}${avail?`<select class="inp" style="width:130px;font-size:11px;margin-left:8px" onchange="if(this.value){CK.push(this.value);renderCK()}"><option value="">+ add</option>${avail}</select>`:''}</div>
+  <div style="margin-top:10px;font-size:11px;color:#484f58">Unique key: ${CK.join(' + ')}</div>
+  <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:8px"><span style="font-size:12px;color:#c9d1d9">Duplicate rows per composite key allowed?</span><select class="inp" style="width:80px" onchange="DUP_CK=this.value"><option ${DUP_CK==='No'?'selected':''}>No</option><option ${DUP_CK==='Yes'?'selected':''}>Yes</option></select></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:8px"><span style="font-size:12px;color:#c9d1d9">Duplicate rows per all columns allowed?</span><select class="inp" style="width:80px" onchange="DUP_ALL=this.value"><option ${DUP_ALL==='No'?'selected':''}>No</option><option ${DUP_ALL==='Yes'?'selected':''}>Yes</option></select></div>
+  </div>`;
+}
+
+function renderCR(){
+  const el=document.getElementById('cr-list');
+  el.innerHTML=CR.map(r=>{
+    const sO=fn().map(n=>`<option ${n===r.srcCol?'selected':''}>${n}</option>`).join('');
+    const aO=AGGS.map(a=>`<option ${a===r.srcAgg?'selected':''}>${a||'(no agg)'}</option>`).join('');
+    const tAO=AGGS.map(a=>`<option ${a===r.tgtAgg?'selected':''}>${a||'(no agg)'}</option>`).join('');
+    const rO=OTHER_REPORTS.map(n=>`<option ${n===r.tgtReport?'selected':''}>${n}</option>`).join('');
+    const sc=r.sev==='error'?'#f85149':'#d29922';
+    const mTags=r.matchBy.map(m=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#a371f722;border:1px solid #a371f744;border-radius:10px;font-size:11px;color:#a371f7;margin:2px">${m}<span onclick="CR.find(x=>x.id===${r.id}).matchBy=CR.find(x=>x.id===${r.id}).matchBy.filter(f=>f!=='${m}');renderCR()" style="cursor:pointer;color:#f85149">✕</span></span>`).join('');
+    const mAvail=fn().filter(n=>!r.matchBy.includes(n)).map(n=>`<option>${n}</option>`).join('');
+    return `<div style="padding:14px 0;border-bottom:1px solid #21262d">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <select class="inp" style="width:70px;font-size:11px" onchange="CR.find(x=>x.id===${r.id}).srcAgg=this.value==='(no agg)'?'':this.value">${aO}</select>
+        <span style="color:#484f58">(</span>
+        <select class="inp" style="width:130px" onchange="CR.find(x=>x.id===${r.id}).srcCol=this.value">${sO}</select>
+        <span style="color:#484f58">)</span>
+        <span style="font-size:12px;color:#8b949e">of</span>
+        <span style="padding:3px 8px;background:#1f6feb22;border-radius:6px;font-size:11px;color:#58a6ff">MeasureList</span>
+        <span style="font-size:13px;color:#3fb950;font-weight:700">=</span>
+        <select class="inp" style="width:70px;font-size:11px" onchange="CR.find(x=>x.id===${r.id}).tgtAgg=this.value==='(no agg)'?'':this.value">${tAO}</select>
+        <span style="color:#484f58">(</span>
+        <input type="text" value="${r.tgtCol}" class="inp" style="width:130px" onchange="CR.find(x=>x.id===${r.id}).tgtCol=this.value;renderCR()" placeholder="Column name">
+        <span style="color:#484f58">)</span>
+        <span style="font-size:12px;color:#8b949e">of</span>
+        <select class="inp" style="width:120px" onchange="CR.find(x=>x.id===${r.id}).tgtReport=this.value">${rO}</select>
+        <select class="inp" style="width:100px;color:${sc}" onchange="CR.find(x=>x.id===${r.id}).sev=this.value;renderCR()"><option value="error" style="color:#f85149" ${r.sev==='error'?'selected':''}>✕ error</option><option value="warning" style="color:#d29922" ${r.sev==='warning'?'selected':''}>⚠ warning</option></select>
+        <button class="del-btn" onclick="CR=CR.filter(x=>x.id!==${r.id});renderCR()" style="margin-left:auto">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-left:4px">
+        <span style="font-size:11px;color:#8b949e">Match by:</span>${mTags}
+        <select class="inp" style="width:110px;font-size:11px" onchange="if(this.value){CR.find(x=>x.id===${r.id}).matchBy.push(this.value);renderCR()}"><option value="">+ add key</option>${mAvail}</select>
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:#484f58;padding-left:4px">${r.srcAgg?r.srcAgg+'(':''}${r.srcCol}${r.srcAgg?')':''} of MeasureList = ${r.tgtAgg?r.tgtAgg+'(':''}${r.tgtCol}${r.tgtAgg?')':''} of ${r.tgtReport}${r.matchBy.length?' for each '+r.matchBy.join(', '):''}</div>
+    </div>`;
+  }).join('');
+}
+function addCR(){CR.push({id:crN++,srcCol:fn()[0],srcAgg:'',tgtReport:OTHER_REPORTS[0],tgtCol:'',tgtAgg:'',matchBy:[],sev:'error'});renderCR();}
+
+renderTable();renderCF();renderGB();renderSB();renderCK();renderCR();sel(4);
+</script>
+</body>
+</html>

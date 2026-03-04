@@ -1,0 +1,197 @@
+# ============================================================
+# Table: measuredetails
+# ============================================================
+
+table_name: measuredetails
+schema: dbo
+classification: dimension
+
+description: >
+  Dimension table containing HEDIS measure definitions. One row per measure.
+  Contains measure codes, names, types, domains, categories, and behavioral
+  flags (star indicator, inverse flag, NCQA inverted flag). This is the
+  primary reference for understanding what each measure means and how
+  its compliance should be calculated.
+
+row_count_approx: 1247
+
+grain:
+  description: "One row per measureid. submeasurecode is also unique."
+  columns: [measureid]
+
+joins_with:
+  - table: factqualityreport
+    join_type: INNER
+    on_expression: "Conditional — see factqualityreport join details"
+    relationship: "1:many"
+    purpose: "Fact table joins here to get measure metadata"
+
+problems_and_suggestions:
+  - problem: "Two different join paths (keyvaluemeasureid vs clinicalmeasureid) create complexity"
+    impact: "Every query must handle the conditional OR join"
+    suggestion: "Standardize on a single join key"
+
+columns:
+  measureid:
+    data_type: INT
+    nullable: false
+    pk: true
+    fk: null
+    constraints: "Unique"
+    index: "Clustered index"
+    grain: "Unique measure identifier"
+    record_level_info: >
+      Primary key. Joined from factqualityreport.keyvaluemeasureid
+      when that column is NOT NULL.
+    same_in_other_tables:
+      - table: factqualityreport
+        column: keyvaluemeasureid
+        relationship: "Conditional FK"
+
+  clinicalmeasureid:
+    data_type: INT
+    nullable: false
+    pk: false
+    fk: null
+    constraints: null
+    index: "Non-clustered index"
+    grain: "Clinical measure identifier"
+    record_level_info: >
+      Fallback join key from factqualityreport.clinicalmeasureid
+      when keyvaluemeasureid IS NULL.
+    same_in_other_tables:
+      - table: factqualityreport
+        column: clinicalmeasureid
+        relationship: "Conditional FK (fallback)"
+
+  submeasurecode:
+    data_type: VARCHAR(20)
+    nullable: false
+    pk: false
+    fk: null
+    constraints: "Unique"
+    index: "Non-clustered index"
+    grain: "HEDIS sub-measure code (e.g., AWC-01, CBP-01, CIS-01)"
+    record_level_info: >
+      Human-readable measure identifier. Format: XXX-NN.
+      Used in report display, GROUP BY, and as slicer value.
+      Also used in keyvaluemapping joins for measure merging.
+    same_in_other_tables:
+      - table: factqualityreport
+        column: submeasurecode
+      - table: qualitycutpoints
+        column: SubMeasureCode
+
+  name:
+    data_type: VARCHAR(200)
+    nullable: false
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Full measure name"
+    record_level_info: >
+      Human-readable measure name (e.g., "Adolescent Well-Care Visits").
+      Used in the 'Measures' display column: CONCAT(code, ' ', name).
+
+  measurecode:
+    data_type: VARCHAR(10)
+    nullable: false
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Parent measure code (e.g., AWC, CBP, CIS)"
+    record_level_info: >
+      The parent measure code without the sub-measure number.
+      Multiple submeasurecodes can share the same measurecode.
+
+  measuretype:
+    data_type: VARCHAR(30)
+    nullable: false
+    pk: false
+    fk: null
+    constraints: "Values: 'Visit', 'Event', 'Patient-Process'"
+    index: null
+    grain: "HEDIS measure type — determines counting entity"
+    record_level_info: >
+      Critical for VDE/EDE/ECC/ERF calculations:
+        'Visit' → COUNT(visitSSUI)
+        'Event' → COUNT(eventSSUI)
+        'Patient-Process' → COUNT(patientSSUI)
+      This is a HEDIS-defined classification, not client-specific.
+
+  STARINDICATOR:
+    data_type: CHAR(1)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: "Values: 'Y' or NULL"
+    index: null
+    grain: "Whether this is a CMS Star-rated measure"
+    record_level_info: >
+      'Y' = Star-rated measure. Display with asterisk: 'AWC-01*'
+      NULL = Not star-rated. Display without asterisk.
+
+  InverseFlag:
+    data_type: CHAR(1)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: "Values: 'Y', 'N', or NULL"
+    index: null
+    grain: "Whether lower rates are better for this measure"
+    record_level_info: >
+      'Y' = Inverse measure — lower compliance is better.
+        Display with '(Inverse)' suffix.
+        Percentile comparison direction is reversed.
+      'N' or NULL = Normal measure — higher compliance is better.
+      
+      Affects: Measures display name, PCTL calculation direction.
+
+  NCQAInvertedFlag:
+    data_type: CHAR(1)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: "Values: 'Y', 'N', or NULL"
+    index: null
+    grain: "Whether NCQA inverts the numerator for this measure"
+    record_level_info: >
+      'Y' = Use Non Compliant (Act_Performance_Not_Met) as numerator
+             for compliance % calculation.
+      'N' or NULL = Use Compliant (Act_Performance_Met) as numerator.
+      
+      This is DIFFERENT from InverseFlag:
+        NCQAInvertedFlag → which number to use as numerator
+        InverseFlag → which direction is "better" for percentile ranking
+      
+      Together they create a 4-way branch in PCTL calculation:
+        NCQAInverted=Y + Inverse=N → NonCompliant, normal direction
+        NCQAInverted=Y + Inverse=Y → NonCompliant, reversed direction
+        NCQAInverted=N + Inverse=N → Compliant, normal direction
+        NCQAInverted=N + Inverse=Y → Compliant, reversed direction
+
+  CMQDOMAIN:
+    data_type: VARCHAR(100)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "NCQA quality domain"
+    record_level_info: >
+      HEDIS domain grouping (e.g., "Effectiveness of Care",
+      "Access/Availability of Care"). Used as a slicer.
+
+  category:
+    data_type: VARCHAR(100)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Health category"
+    record_level_info: >
+      Health category grouping (e.g., "Prevention", "Chronic",
+      "Behavioral Health"). Used as a slicer.

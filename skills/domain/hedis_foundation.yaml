@@ -1,0 +1,703 @@
+# ============================================================
+# HEDIS Foundation Knowledge Base
+# Scope: Demo — covers structural rules, measure metadata,
+#         calculation patterns, and validation logic.
+# Source: Publicly available NCQA info + client RDW patterns
+# Does NOT contain copyrighted NCQA specification text.
+# ============================================================
+
+version: "HEDIS MY2024"
+last_updated: "2026-03-03"
+
+# ============================================================
+# MEASURE CATALOG
+# Source: Public NCQA measure list + measuredetails table
+# ============================================================
+measures:
+  AWC:
+    code: AWC
+    sub_measures: [AWC-01]
+    name: Adolescent Well-Care Visits
+    measure_type: Visit
+    domain: Effectiveness of Care
+    category: Prevention
+    star_rated: true
+    inverse: false
+    ncqa_inverted: false
+    data_source: [Administrative, Hybrid]
+
+  BCS:
+    code: BCS
+    sub_measures: [BCS-01]
+    name: Breast Cancer Screening
+    measure_type: Patient-Process
+    domain: Effectiveness of Care
+    category: Prevention
+    star_rated: true
+    inverse: false
+    ncqa_inverted: false
+    data_source: [Administrative, Hybrid]
+
+  CBP:
+    code: CBP
+    sub_measures: [CBP-01]
+    name: Controlling High Blood Pressure
+    measure_type: Patient-Process
+    domain: Effectiveness of Care
+    category: Chronic
+    star_rated: true
+    inverse: false
+    ncqa_inverted: false
+    data_source: [Hybrid]
+
+  CIS:
+    code: CIS
+    sub_measures: [CIS-01, CIS-02, CIS-03, CIS-04, CIS-05, CIS-06, CIS-07, CIS-08, CIS-09, CIS-10]
+    name: Childhood Immunization Status
+    measure_type: Patient-Process
+    domain: Effectiveness of Care
+    category: Prevention
+    star_rated: true
+    inverse: false
+    ncqa_inverted: false
+    data_source: [Administrative, Hybrid]
+
+  COL:
+    code: COL
+    sub_measures: [COL-01]
+    name: Colorectal Cancer Screening
+    measure_type: Patient-Process
+    domain: Effectiveness of Care
+    category: Prevention
+    star_rated: true
+    inverse: false
+    ncqa_inverted: false
+    data_source: [Administrative, Hybrid]
+
+  CDC:
+    code: CDC
+    sub_measures: [CDC-01, CDC-02, CDC-03]
+    name: Comprehensive Diabetes Care
+    measure_type: Patient-Process
+    domain: Effectiveness of Care
+    category: Chronic
+    star_rated: true
+    inverse: false
+    ncqa_inverted: false
+    data_source: [Administrative, Hybrid]
+
+  FUA:
+    code: FUA
+    sub_measures: [FUA-01, FUA-02]
+    name: Follow-Up After Emergency Department Visit for Alcohol and Other Drug Abuse or Dependence
+    measure_type: Event
+    domain: Effectiveness of Care
+    category: Behavioral Health
+    star_rated: false
+    inverse: false
+    ncqa_inverted: false
+    data_source: [Administrative]
+
+  PCE:
+    code: PCE
+    sub_measures: [PCE-01]
+    name: Pharmacotherapy Management of COPD Exacerbation
+    measure_type: Event
+    domain: Effectiveness of Care
+    category: Chronic
+    star_rated: false
+    inverse: true
+    ncqa_inverted: true
+    data_source: [Administrative]
+    note: "Example of an inverted measure — lower rate is better"
+
+# ============================================================
+# MEASURE TYPES
+# Determines which SSUI column to count
+# ============================================================
+measure_types:
+  Visit:
+    count_entity: visitSSUI
+    description: "One row per visit. COUNT(visitSSUI) gives visit count."
+    example_measures: [AWC]
+
+  Event:
+    count_entity: eventSSUI
+    description: "One row per event. COUNT(eventSSUI) gives event count."
+    example_measures: [FUA, PCE]
+
+  Patient-Process:
+    count_entity: patientSSUI
+    description: "One row per patient. COUNT(patientSSUI) gives patient count."
+    example_measures: [BCS, CBP, CIS, COL, CDC]
+
+# ============================================================
+# CLINICAL STATUS CODES
+# What clinicalonlystatus values mean
+# ============================================================
+clinical_status_codes:
+  16:
+    label: DVDE
+    full_name: Denominator Valid Data Error
+    meaning: "Member had data but it was invalid or incomplete"
+    report_column: VDE
+    count_logic: "COUNT(entitySSUI) WHERE clinicalonlystatus IN (16, 17)"
+    note: "VDE = DVDE count minus DE count (members with data errors)"
+
+  17:
+    label: DE
+    full_name: Denominator Eligible
+    meaning: "Member is eligible and included in the denominator"
+    report_column: EDE
+    count_logic: "COUNT(entitySSUI) WHERE clinicalonlystatus = 17"
+    note: "These are the rows that contribute to Compliant/Non Compliant"
+
+  23:
+    label: ECC
+    full_name: Exclusion by Clinical Code
+    meaning: "Member excluded due to a clinical code (diagnosis, procedure)"
+    report_column: ECC
+    count_logic: "COUNT(entitySSUI) WHERE clinicalonlystatus = 23"
+
+  24:
+    label: ERF
+    full_name: Exclusion by Required Field
+    meaning: "Member excluded due to missing required data field"
+    report_column: ERF
+    count_logic: "COUNT(entitySSUI) WHERE clinicalonlystatus = 24"
+
+# ============================================================
+# PERFORMANCE METRICS
+# How Compliant, Non Compliant, Denominator relate
+# ============================================================
+performance_metrics:
+  compliant:
+    source_column: Act_Performance_Met
+    aggregation: SUM
+    meaning: "Count of members who met the performance criteria"
+    values: [0, 1]
+    rule: "1 = met criteria, 0 = did not"
+
+  non_compliant:
+    source_column: Act_Performance_Not_Met
+    aggregation: SUM
+    meaning: "Count of members who did NOT meet the performance criteria"
+    values: [0, 1]
+    rule: "Always the inverse of Act_Performance_Met for DE rows"
+
+  denominator:
+    formula: "SUM(Act_Performance_Met) + SUM(Act_Performance_Not_Met)"
+    meaning: "Total eligible population = Compliant + Non Compliant"
+    note: "Does NOT include excluded members (ECC, ERF)"
+
+  required_exclusion:
+    source_column: reportingExclusionStatus
+    aggregation: SUM
+    meaning: "Members with NCQA-defined required exclusions"
+
+  optional_exclusion:
+    source_column: optionalExclusionStatus
+    aggregation: SUM
+    meaning: "Members with optional exclusions (client can choose to apply)"
+
+  relationships:
+    - "Compliant + Non Compliant = Denominator (always)"
+    - "Compliant <= Denominator (always)"
+    - "Non Compliant <= Denominator (always)"
+    - "Required Exclusion members are NOT in Denominator"
+    - "Optional Exclusion members are NOT in Denominator (when applied)"
+    - "Compliant >= 0 (never negative)"
+    - "Non Compliant >= 0 (never negative)"
+    - "Denominator >= 0 (never negative)"
+
+# ============================================================
+# COMPLIANCE CALCULATION
+# How Compliance % is computed
+# ============================================================
+compliance_calculation:
+  description: "Compliance % depends on NCQAInvertedFlag"
+
+  normal_measure:
+    condition: "NCQAInvertedFlag = 'N' or NULL"
+    formula: "ROUND(SUM(Compliant) * 100 / NULLIF(SUM(Denominator), 0), 2)"
+    meaning: "Higher % = better performance"
+
+  inverted_measure:
+    condition: "NCQAInvertedFlag = 'Y'"
+    formula: "ROUND(SUM(NonCompliant) * 100 / NULLIF(SUM(Denominator), 0), 2)"
+    meaning: "For inverted measures, NonCompliant is the numerator"
+
+  sql_pattern: |
+    CASE
+      WHEN M.NCQAInvertedFlag = 'Y' THEN
+        ROUND(SUM(A.Act_Performance_Not_Met) * 100.0
+          / NULLIF(SUM(A.Act_Performance_Met) + SUM(A.Act_Performance_Not_Met), 0), 2)
+      ELSE
+        ROUND(SUM(A.Act_Performance_Met) * 100.0
+          / NULLIF(SUM(A.Act_Performance_Met) + SUM(A.Act_Performance_Not_Met), 0), 2)
+    END
+
+  validation_rules:
+    - "Result must be between 0 and 100"
+    - "NULL when Denominator = 0"
+
+# ============================================================
+# PERCENTILE (PCTL) CALCULATION
+# NCQA percentile ranking using cutpoints
+# ============================================================
+percentile_calculation:
+  description: "Ranks compliance % into NCQA percentile buckets using cutpoints"
+
+  cutpoints:
+    Cutpoint3: "25th percentile threshold"
+    Cutpoint5: "50th percentile threshold"
+    Cutpoint7: "75th percentile threshold"
+    Cutpoint8: "90th percentile threshold"
+
+  buckets:
+    - label: "<25th"
+      normal_condition: "rate < Cutpoint3"
+      inverted_condition: "rate > Cutpoint3"
+    - label: "25th"
+      normal_condition: "rate >= Cutpoint3 AND rate < Cutpoint5"
+      inverted_condition: "rate <= Cutpoint3 AND rate > Cutpoint5"
+    - label: "50th"
+      normal_condition: "rate >= Cutpoint5 AND rate < Cutpoint7"
+      inverted_condition: "rate <= Cutpoint5 AND rate > Cutpoint7"
+    - label: "75th"
+      normal_condition: "rate >= Cutpoint7 AND rate < Cutpoint8"
+      inverted_condition: "rate <= Cutpoint7 AND rate > Cutpoint8"
+    - label: "90th"
+      normal_condition: "rate >= Cutpoint8"
+      inverted_condition: "rate <= Cutpoint8"
+
+  null_conditions:
+    - "Denominator = 0"
+    - "All cutpoints = 0 (no cutpoints published for this measure)"
+
+  branching_logic:
+    description: "4-way branch based on NCQAInvertedFlag × InverseFlag"
+    branches:
+      - ncqa_inverted: "Y"
+        inverse: "N"
+        numerator: NonCompliant
+        comparison: normal
+      - ncqa_inverted: "Y"
+        inverse: "Y"
+        numerator: NonCompliant
+        comparison: inverted
+      - ncqa_inverted: "N"
+        inverse: "N"
+        numerator: Compliant
+        comparison: normal
+      - ncqa_inverted: "N"
+        inverse: "Y"
+        numerator: Compliant
+        comparison: inverted
+
+  gap_to_percentile:
+    description: "How many more compliant members needed to reach a percentile"
+    formula_normal: "CEIL((Denominator * Cutpoint / 100) - Numerator)"
+    formula_inverted: "CEIL(Numerator - (Denominator * Cutpoint / 100))"
+    display_rule: "NULL when already at or above the percentile (result <= 0)"
+
+# ============================================================
+# FLAG LOGIC
+# What each flag means and how it affects calculations
+# ============================================================
+flags:
+  NCQAInvertedFlag:
+    source_table: measuredetails
+    values:
+      "Y": "Use Non Compliant as numerator for compliance calculation"
+      "N": "Use Compliant as numerator (default/normal)"
+    affects: [compliance_calculation, percentile_calculation]
+
+  InverseFlag:
+    source_table: measuredetails
+    values:
+      "Y": "Lower rate is better — reverse percentile comparison direction. Append '(Inverse)' to measure display name."
+      "N": "Higher rate is better (default/normal)"
+    affects: [percentile_calculation, measure_display_name]
+
+  STARINDICATOR:
+    source_table: measuredetails
+    values:
+      "Y": "CMS Star-rated measure — append '*' to measure code in display"
+      null: "Not star-rated"
+    affects: [measure_display_name]
+
+# ============================================================
+# MEASURE DISPLAY NAME CONSTRUCTION
+# How the "Measures" column is built
+# ============================================================
+measure_display_name:
+  description: "Concatenated display name shown in reports"
+  pattern: "{code}{star} {name}{inverse}"
+  components:
+    code: "submeasurecode from measuredetails, OR KEYVALUE from keyvaluemapping if measure was merged"
+    star: "'*' if STARINDICATOR = 'Y', else empty"
+    name: "name from measuredetails, OR name looked up via merged code"
+    inverse: "' (Inverse)' if InverseFlag = 'Y', else empty"
+  example_outputs:
+    - "AWC-01* Adolescent Well-Care Visits"
+    - "CBP-01 Controlling High Blood Pressure"
+    - "PCE-01 Pharmacotherapy Management of COPD Exacerbation (Inverse)"
+  requires_tables: [measuredetails, keyvaluemapping]
+
+# ============================================================
+# STANDARD FIXED FILTERS
+# Applied to ALL quality reports
+# ============================================================
+standard_fixed_filters:
+  - column: isRaw
+    value: 0
+    meaning: "Exclude raw/unaudited data"
+    applies_to: "All quality reports"
+
+  - column: isUtilization
+    value: 0
+    meaning: "Exclude utilization measures (they have separate reports)"
+    applies_to: "All quality reports"
+
+  - column: RN
+    value: 1
+    meaning: "Deduplication — take first row per factssui + SubmissionId"
+    applies_to: "All quality reports"
+    implementation: "ROW_NUMBER() OVER (PARTITION BY factssui, SubmissionId ORDER BY factssui, SubmissionId ASC)"
+
+# ============================================================
+# STANDARD SLICERS
+# Common across most quality reports
+# ============================================================
+standard_slicers:
+  - name: Organization Name
+    column: organizationname
+    table: factqualityreport
+    required: true
+    multi_select: false
+
+  - name: Measurement Year
+    column: MeasurementYear
+    table: factqualityreport
+    required: true
+    multi_select: false
+
+  - name: Line of Business
+    column: productcategoryname
+    table: dimproductcategory
+    required: false
+    multi_select: false
+
+  - name: Business Group
+    column: businessgroupcode
+    table: factQualityReport_Filters
+    required: false
+    multi_select: false
+
+  - name: Submission
+    column: NCQA_Submission_ID_Name
+    table: factqualityreport
+    required: false
+    multi_select: false
+
+  - name: Products
+    column: productname
+    table: factQualityReport_Filters
+    required: false
+    multi_select: true
+
+  - name: Health Plans
+    column: healthplanname
+    table: factQualityReport_Filters
+    required: false
+    multi_select: true
+
+  - name: NCQA Domain
+    column: CMQDOMAIN
+    table: measuredetails
+    required: false
+    multi_select: false
+
+  - name: Health Category
+    column: category
+    table: measuredetails
+    required: false
+    multi_select: false
+
+  - name: Measures
+    column: submeasurecode
+    table: factqualityreport
+    required: false
+    multi_select: true
+
+  - name: Enrollment Status
+    column: enrollmentstatus
+    table: factqualityreport
+    required: false
+    multi_select: false
+
+slicer_sql_pattern: |
+  AND {column} = COALESCE(
+    CASE WHEN LEN({parameter}) < 1 THEN NULL ELSE {parameter} END,
+    {column}
+  )
+
+# ============================================================
+# STANDARD CROSS-FIELD VALIDATION RULES
+# Auto-applied to any report with these columns
+# ============================================================
+standard_cross_field_rules:
+  - rule: "Compliant <= Denominator"
+    severity: error
+    reason: "Compliant is a subset of Denominator"
+    applies_when: "Report has both Compliant and Denominator columns"
+
+  - rule: "Non Compliant <= Denominator"
+    severity: error
+    reason: "Non Compliant is a subset of Denominator"
+    applies_when: "Report has both Non Compliant and Denominator columns"
+
+  - rule: "Compliant + Non Compliant = Denominator"
+    severity: error
+    reason: "Denominator is defined as Compliant + Non Compliant"
+    applies_when: "Report has all three columns"
+
+  - rule: "Required Exclusion <= Denominator"
+    severity: warning
+    reason: "Exclusions should not exceed the eligible population"
+    applies_when: "Report has both columns"
+
+  - rule: "Optional Exclusion <= Denominator"
+    severity: warning
+    reason: "Exclusions should not exceed the eligible population"
+    applies_when: "Report has both columns"
+
+  - rule: "Compliance % between 0 and 100"
+    severity: error
+    reason: "Percentage cannot exceed 100 or be negative"
+    applies_when: "Report has Compliance % column"
+
+  - rule: "Compliance % = NULL when Denominator = 0"
+    severity: error
+    reason: "Division by zero should produce NULL, not 0 or error"
+    applies_when: "Report has both columns"
+
+  - rule: "VDE + EDE + ECC + ERF <= total member count"
+    severity: warning
+    reason: "Clinical status counts should not exceed total"
+    applies_when: "Report has VDE, EDE, ECC, ERF columns"
+
+  - rule: "Current PCTL must be one of: <25th, 25th, 50th, 75th, 90th, NULL"
+    severity: error
+    reason: "Only valid NCQA percentile buckets allowed"
+    applies_when: "Report has Current PCTL column"
+
+  - rule: "To reach percentile values must be positive or NULL"
+    severity: error
+    reason: "Gap-to-percentile is NULL when already achieved, positive otherwise"
+    applies_when: "Report has To reach columns"
+
+# ============================================================
+# STANDARD FIELD TEMPLATES
+# Reusable SQL patterns for common report columns
+# ============================================================
+field_templates:
+  Measures:
+    data_type: String
+    sql_expression: |
+      CONCAT(
+        CASE WHEN KVM.KEYVALUE IS NULL THEN M.SUBMEASURECODE ELSE KVM.KEYVALUE END,
+        IIF(M.STARINDICATOR = 'Y', '*', ''),
+        ' ',
+        CASE WHEN KVM.KEYVALUE IS NULL THEN M.name
+             ELSE (SELECT name FROM measuredetails WHERE submeasurecode = KVM.KEYVALUE) END,
+        IIF(M.InverseFlag = 'Y', ' (Inverse)', '')
+      )
+    requires_joins: [measuredetails, keyvaluemapping]
+    is_aggregate: false
+
+  Submission:
+    data_type: String
+    sql_expression: "A.NCQA_Submission_ID_Name"
+    is_aggregate: false
+
+  "Compliance %":
+    data_type: Percentage
+    sql_expression: "compliance_calculation.sql_pattern"
+    is_aggregate: true
+    validation: {type: range, min: 0, max: 100}
+
+  Denominator:
+    data_type: Integer
+    sql_expression: "SUM(A.Act_Performance_Met) + SUM(A.Act_Performance_Not_Met)"
+    is_aggregate: true
+    validation: {type: range, min: 0}
+
+  Compliant:
+    data_type: Integer
+    sql_expression: "SUM(A.Act_Performance_Met)"
+    is_aggregate: true
+    cross_field: "Compliant <= Denominator"
+
+  "Non Compliant":
+    data_type: Integer
+    sql_expression: "SUM(A.Act_Performance_Not_Met)"
+    is_aggregate: true
+    cross_field: "Non Compliant <= Denominator"
+
+  "Required Exclusion":
+    data_type: Integer
+    sql_expression: "SUM(A.reportingExclusionStatus)"
+    is_aggregate: true
+
+  "Optional Exclusion":
+    data_type: Integer
+    sql_expression: "SUM(A.optionalExclusionStatus)"
+    is_aggregate: true
+
+  MRSS:
+    data_type: String
+    sql_expression: "COALESCE(CAST(A.minimumrequiredsamplesize AS VARCHAR(20)), '-')"
+    is_aggregate: false
+
+  VDE:
+    data_type: Integer
+    sql_expression: "clinical_status_count(16, 17)"
+    note: "COUNT where clinicalonlystatus IN (16,17) minus COUNT where =17"
+    is_aggregate: true
+    allow_null: true
+
+  EDE:
+    data_type: Integer
+    sql_expression: "clinical_status_count(17)"
+    is_aggregate: true
+    allow_null: true
+
+  ECC:
+    data_type: Integer
+    sql_expression: "clinical_status_count(23)"
+    is_aggregate: true
+    allow_null: true
+
+  ERF:
+    data_type: Integer
+    sql_expression: "clinical_status_count(24)"
+    is_aggregate: true
+    allow_null: true
+
+  "Current PCTL":
+    data_type: String
+    sql_expression: "percentile_calculation"
+    is_aggregate: true
+    allow_null: true
+    validation: {type: enum, values: ["<25th", "25th", "50th", "75th", "90th"]}
+
+  "To reach (25th PCTL)":
+    data_type: Integer
+    sql_expression: "gap_to_percentile(Cutpoint3)"
+    is_aggregate: true
+    allow_null: true
+
+  "To reach (50th PCTL)":
+    data_type: Integer
+    sql_expression: "gap_to_percentile(Cutpoint5)"
+    is_aggregate: true
+    allow_null: true
+
+  "To reach (75th PCTL)":
+    data_type: Integer
+    sql_expression: "gap_to_percentile(Cutpoint7)"
+    is_aggregate: true
+    allow_null: true
+
+  "To reach (90th PCTL)":
+    data_type: Integer
+    sql_expression: "gap_to_percentile(Cutpoint8)"
+    is_aggregate: true
+    allow_null: true
+
+  "Source Feed Type":
+    data_type: String
+    sql_expression: "A.submissionsourcesfeedtype"
+    is_aggregate: false
+    note: "Used in IDSS Hierarchy reports"
+
+  "Source System":
+    data_type: String
+    sql_expression: "A.sourcesystemname"
+    is_aggregate: false
+    note: "Used in IDSS Hierarchy reports"
+
+  Entity:
+    data_type: String
+    sql_expression: "A.Subnetwork"
+    is_aggregate: false
+    note: "From factQualityReport_Filters — requires attribution model check"
+
+# ============================================================
+# REPORT TYPES
+# Known HEDIS report patterns
+# ============================================================
+report_types:
+  MeasureList:
+    description: "Measure-level summary — one row per measure per submission"
+    typical_group_by: [Measures, Submission]
+    typical_columns: [Measures, Submission, "Compliance %", Denominator, Compliant, "Non Compliant", "Required Exclusion", MRSS, VDE, EDE, ECC, ERF, "Current PCTL"]
+    base_table: factqualityreport
+
+  ProviderDetail:
+    description: "Provider-level breakdown — one row per measure per provider"
+    typical_group_by: [Measures, Submission, Entity, ProviderGroup]
+    typical_columns: [Entity, Measures, Submission, "Compliance %", Denominator, Compliant, "Non Compliant"]
+    base_table: factqualityreport
+
+  IDSSHierarchy:
+    description: "Source system breakdown — measures split by data source feed type and source system"
+    typical_group_by: [Measures, Submission, "Source Feed Type", "Source System"]
+    typical_columns: [Measures, Submission, "Compliance %", MRSS, Denominator, Compliant, "Optional Exclusion", "Required Exclusion", VDE, EDE, ECC, ERF, "Source Feed Type", "Source System"]
+    base_table: factqualityreport
+    note: "Same measures as MeasureList but further broken down by source"
+
+  GapsInCare:
+    description: "Member-level detail — individual members who are non-compliant"
+    typical_group_by: [PatientID, Measures]
+    typical_columns: [PatientID, Measures, ComplianceStatus, ProviderName, LastVisitDate]
+    base_table: factqualityreport
+    note: "Different grain — member level, not aggregate"
+
+# ============================================================
+# CROSS-REPORT RELATIONSHIPS
+# How reports relate to each other
+# ============================================================
+cross_report_relationships:
+  - source: MeasureList
+    target: IDSSHierarchy
+    relationship: "IDSSHierarchy is a breakdown of MeasureList by Source Feed Type + Source System"
+    validation: "SUM of Denominator in IDSSHierarchy per Measure+Submission = Denominator in MeasureList"
+
+  - source: MeasureList
+    target: ProviderDetail
+    relationship: "ProviderDetail is a breakdown of MeasureList by Provider/Entity"
+    validation: "SUM of Denominator in ProviderDetail per Measure+Submission = Denominator in MeasureList"
+
+  - source: MeasureList
+    target: GapsInCare
+    relationship: "GapsInCare lists individual members from MeasureList Non Compliant count"
+    validation: "COUNT of non-compliant members in GapsInCare per Measure = Non Compliant in MeasureList"
+
+# ============================================================
+# LINES OF BUSINESS
+# ============================================================
+lines_of_business:
+  Commercial:
+    description: "Employer-sponsored and individual market health plans"
+    product_category_names: [Commercial, Commercial HMO, Commercial PPO]
+
+  Medicaid:
+    description: "State-funded health coverage for low-income individuals"
+    product_category_names: [Medicaid, Medicaid HMO]
+
+  Medicare:
+    description: "Federal health coverage for 65+ and disabled individuals"
+    product_category_names: [Medicare, Medicare HMO, Medicare PPO]

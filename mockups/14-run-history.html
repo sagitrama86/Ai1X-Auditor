@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Run History</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.main{margin-left:260px;padding:32px 40px}
+.top-bar{display:flex;align-items:center;justify-content:flex-end;margin-bottom:20px;padding:8px 0;border-bottom:1px solid #21262d}
+.release-selector{display:flex;align-items:center;gap:8px;font-size:13px;color:#8b949e}
+.release-select{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#d29922;font-size:13px;font-weight:600;padding:4px 10px;cursor:pointer}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:#8b949e;margin-bottom:20px}
+.breadcrumb a{color:#58a6ff;text-decoration:none}
+.page-header{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}
+.page-header-left h1{font-size:28px;font-weight:600;margin-bottom:8px}
+.page-header-left p{color:#8b949e;font-size:15px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:#1f6feb;color:#fff}
+.btn-outline{background:transparent;color:#8b949e;border:1px solid #30363d}
+
+/* Filters bar */
+.filters-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.filter-chip{padding:5px 12px;background:#161b22;border:1px solid #30363d;border-radius:16px;font-size:12px;color:#8b949e;cursor:pointer;transition:all .15s}
+.filter-chip:hover{border-color:#58a6ff;color:#58a6ff}
+.filter-chip.active{background:#1f6feb22;border-color:#58a6ff;color:#58a6ff}
+.inp{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e1e4e8;font-size:12px;padding:4px 8px}
+
+/* Report groups */
+.report-group{margin-bottom:28px}
+.report-group-header{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #30363d;margin-bottom:12px}
+.report-group-name{font-size:18px;font-weight:600;display:flex;align-items:center;gap:10px}
+.report-group-stats{display:flex;gap:16px;font-size:12px;color:#8b949e}
+.stat-g{color:#3fb950}.stat-r{color:#f85149}.stat-y{color:#d29922}
+
+/* Run cards */
+.run-card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px 20px;margin-bottom:8px;cursor:pointer;transition:all .15s;display:grid;grid-template-columns:60px 1fr 120px 100px 100px 80px;align-items:center;gap:12px}
+.run-card:hover{border-color:#484f58;background:#1f2937}
+.run-id{font-family:'SF Mono',monospace;font-size:12px;color:#8b949e}
+.run-info{display:flex;flex-direction:column;gap:2px}
+.run-slicers{font-size:12px;color:#c9d1d9}
+.run-meta{font-size:11px;color:#484f58}
+.run-release{font-size:12px;font-weight:600;color:#d29922;background:#d2992222;padding:2px 8px;border-radius:6px;text-align:center}
+.run-match{font-size:13px;font-weight:600;text-align:center}
+.run-match.good{color:#3fb950}
+.run-match.warn{color:#d29922}
+.run-match.bad{color:#f85149}
+.run-status{text-align:center}
+.status-badge{display:inline-block;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:600}
+.status-badge.pass{background:#3fb95022;color:#3fb950}
+.status-badge.fail{background:#f8514922;color:#f85149}
+.status-badge.warn{background:#d2992222;color:#d29922}
+.run-time{font-size:11px;color:#484f58;text-align:right}
+
+/* Trend mini chart */
+.trend{display:flex;align-items:flex-end;gap:2px;height:24px}
+.trend-bar{width:6px;border-radius:2px 2px 0 0;transition:all .15s}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item"onclick="location='16-schema.html'">🗄️ Schema</div><div class="nav-item"onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
+      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item active">📜 Run History</div></div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW — 23 tables</div></div>
+</div>
+<div class="main">
+  <!-- Active Release Bar -->
+  <div class="top-bar">
+    <div class="release-selector">
+      Active Release:
+      <select class="release-select" onchange="filterByRelease(this.value)">
+        <option value="all">All Releases</option>
+        <option value="25.5" selected>25.5</option>
+        <option value="25.4">25.4</option>
+        <option value="25.3">25.3</option>
+        <option value="25.2">25.2</option>
+      </select>
+      <button class="btn btn-outline" style="padding:4px 10px;font-size:11px" onclick="var n=prompt('New release name:');if(n)alert('Release '+n+' created')">+ New Release</button>
+    </div>
+  </div>
+
+  <div class="breadcrumb"><a href="05-home-loaded.html">Home</a> / <span>Run History</span></div>
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>Run History</h1>
+      <p>All comparison runs grouped by report. Showing release <strong style="color:#d29922">25.5</strong>.</p>
+    </div>
+    <button class="btn btn-primary" onclick="location='10-compare.html'">+ New Comparison</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <span style="font-size:12px;color:#8b949e">Filter:</span>
+    <div class="filter-chip active" onclick="this.classList.toggle('active')">All</div>
+    <div class="filter-chip" onclick="this.classList.toggle('active')">✅ Pass</div>
+    <div class="filter-chip" onclick="this.classList.toggle('active')">❌ Fail</div>
+    <div class="filter-chip" onclick="this.classList.toggle('active')">⚠️ Warnings</div>
+    <span style="margin-left:auto;font-size:12px;color:#8b949e">Sort:</span>
+    <select class="inp" style="width:140px"><option selected>Newest first</option><option>Oldest first</option><option>Most mismatches</option></select>
+  </div>
+
+  <!-- Report Group: MeasureList -->
+  <div class="report-group">
+    <div class="report-group-header">
+      <div class="report-group-name">
+        📄 Quality Dashboard — MeasureList
+        <div class="trend">
+          <div class="trend-bar" style="height:20px;background:#3fb950"></div>
+          <div class="trend-bar" style="height:18px;background:#3fb950"></div>
+          <div class="trend-bar" style="height:24px;background:#3fb950"></div>
+          <div class="trend-bar" style="height:12px;background:#f85149"></div>
+          <div class="trend-bar" style="height:22px;background:#3fb950"></div>
+          <div class="trend-bar" style="height:24px;background:#3fb950"></div>
+        </div>
+      </div>
+      <div class="report-group-stats">
+        <span>6 runs</span>
+        <span class="stat-g">5 pass</span>
+        <span class="stat-r">1 fail</span>
+        <span>Avg match: <strong style="color:#3fb950">99.6%</strong></span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:60px 1fr 80px 100px 100px 80px;padding:0 20px 6px;font-size:10px;text-transform:uppercase;color:#484f58;letter-spacing:.5px">
+      <span>Run</span><span>Slicers</span><span>Release</span><span>Match Rate</span><span>Status</span><span style="text-align:right">Time</span>
+    </div>
+
+    <div class="run-card" onclick="location='12-compare-results.html'">
+      <div class="run-id">#006</div>
+      <div class="run-info"><div class="run-slicers">Org=Acme · Year=2024 · LOB=All</div><div class="run-meta">142 rows · 5 mismatches · 7/8 validations</div></div>
+      <div class="run-release">25.5</div>
+      <div class="run-match good">99.8%</div>
+      <div class="run-status"><span class="status-badge pass">PASS</span></div>
+      <div class="run-time">2 min ago</div>
+    </div>
+    <div class="run-card">
+      <div class="run-id">#005</div>
+      <div class="run-info"><div class="run-slicers">Org=Acme · Year=2024 · LOB=Commercial</div><div class="run-meta">89 rows · 0 mismatches · 8/8 validations</div></div>
+      <div class="run-release">25.5</div>
+      <div class="run-match good">100%</div>
+      <div class="run-status"><span class="status-badge pass">PASS</span></div>
+      <div class="run-time">1 hr ago</div>
+    </div>
+    <div class="run-card">
+      <div class="run-id">#004</div>
+      <div class="run-info"><div class="run-slicers">Org=Acme · Year=2024 · LOB=Medicaid</div><div class="run-meta">53 rows · 12 mismatches · 6/8 validations</div></div>
+      <div class="run-release">25.5</div>
+      <div class="run-match bad">94.2%</div>
+      <div class="run-status"><span class="status-badge fail">FAIL</span></div>
+      <div class="run-time">3 hrs ago</div>
+    </div>
+    <div class="run-card">
+      <div class="run-id">#003</div>
+      <div class="run-info"><div class="run-slicers">Org=Beta Corp · Year=2024 · LOB=All</div><div class="run-meta">210 rows · 2 mismatches · 8/8 validations</div></div>
+      <div class="run-release">25.5</div>
+      <div class="run-match good">99.9%</div>
+      <div class="run-status"><span class="status-badge pass">PASS</span></div>
+      <div class="run-time">Yesterday</div>
+    </div>
+    <div class="run-card" style="opacity:.6">
+      <div class="run-id">#002</div>
+      <div class="run-info"><div class="run-slicers">Org=Acme · Year=2023 · LOB=All</div><div class="run-meta">138 rows · 0 mismatches · 8/8 validations</div></div>
+      <div class="run-release">25.4</div>
+      <div class="run-match good">100%</div>
+      <div class="run-status"><span class="status-badge pass">PASS</span></div>
+      <div class="run-time">Feb 15</div>
+    </div>
+    <div class="run-card" style="opacity:.6">
+      <div class="run-id">#001</div>
+      <div class="run-info"><div class="run-slicers">Org=Acme · Year=2023 · LOB=All</div><div class="run-meta">138 rows · 8 mismatches · 5/8 validations</div></div>
+      <div class="run-release">25.4</div>
+      <div class="run-match warn">98.5%</div>
+      <div class="run-status"><span class="status-badge warn">WARN</span></div>
+      <div class="run-time">Feb 10</div>
+    </div>
+  </div>
+
+  <!-- Report Group: Provider Detail -->
+  <div class="report-group">
+    <div class="report-group-header">
+      <div class="report-group-name">
+        📄 Quality Dashboard — Provider Detail
+        <div class="trend">
+          <div class="trend-bar" style="height:24px;background:#3fb950"></div>
+          <div class="trend-bar" style="height:22px;background:#3fb950"></div>
+        </div>
+      </div>
+      <div class="report-group-stats">
+        <span>2 runs</span>
+        <span class="stat-g">2 pass</span>
+        <span>Avg match: <strong style="color:#3fb950">100%</strong></span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:60px 1fr 80px 100px 100px 80px;padding:0 20px 6px;font-size:10px;text-transform:uppercase;color:#484f58;letter-spacing:.5px">
+      <span>Run</span><span>Slicers</span><span>Release</span><span>Match Rate</span><span>Status</span><span style="text-align:right">Time</span>
+    </div>
+
+    <div class="run-card">
+      <div class="run-id">#002</div>
+      <div class="run-info"><div class="run-slicers">Org=Acme · Year=2024 · Provider=All</div><div class="run-meta">1,247 rows · 0 mismatches · 5/5 validations</div></div>
+      <div class="run-release">25.5</div>
+      <div class="run-match good">100%</div>
+      <div class="run-status"><span class="status-badge pass">PASS</span></div>
+      <div class="run-time">4 hrs ago</div>
+    </div>
+    <div class="run-card" style="opacity:.6">
+      <div class="run-id">#001</div>
+      <div class="run-info"><div class="run-slicers">Org=Acme · Year=2024 · Provider=All</div><div class="run-meta">1,247 rows · 0 mismatches · 5/5 validations</div></div>
+      <div class="run-release">25.4</div>
+      <div class="run-match good">100%</div>
+      <div class="run-status"><span class="status-badge pass">PASS</span></div>
+      <div class="run-time">Feb 14</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function filterByRelease(val){
+  document.querySelectorAll('.run-card').forEach(c=>{
+    if(val==='all'){c.style.opacity='1';c.style.display='grid';return;}
+    const rel=c.querySelector('.run-release');
+    if(rel&&rel.textContent.trim()===val){c.style.opacity='1';c.style.display='grid';}
+    else{c.style.opacity='.3';c.style.display='grid';}
+  });
+}
+</script>
+</body>
+</html>

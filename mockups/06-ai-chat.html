@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - AI Chat</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.main{margin-left:260px;display:flex;flex-direction:column;height:100vh}
+.chat-header{padding:16px 24px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between}
+.chat-header h2{font-size:16px;font-weight:600}
+.context-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:#1f6feb22;border:1px solid #1f6feb44;border-radius:12px;color:#58a6ff;font-size:11px;margin-left:6px}
+.chat-messages{flex:1;overflow-y:auto;padding:24px}
+.message{display:flex;gap:12px;margin-bottom:24px;max-width:800px}
+.msg-avatar{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.msg-avatar.user{background:#1f6feb33}
+.msg-avatar.ai{background:#3fb95033}
+.msg-body{flex:1}
+.msg-name{font-size:12px;font-weight:600;margin-bottom:6px}
+.msg-name.user{color:#58a6ff}
+.msg-name.ai{color:#3fb950}
+.msg-text{font-size:14px;line-height:1.7;color:#c9d1d9;white-space:pre-wrap}
+.msg-src{font-size:10px;color:#484f58;margin-top:6px}
+.typing-row{display:flex;gap:4px;padding:8px 0}
+.tdot{width:6px;height:6px;background:#8b949e;border-radius:50%;animation:bounce .6s infinite alternate}
+.tdot:nth-child(2){animation-delay:.2s}
+.tdot:nth-child(3){animation-delay:.4s}
+@keyframes bounce{to{opacity:.3;transform:translateY(-4px)}}
+.typing-timer{font-size:11px;color:#484f58;margin-top:4px}
+.chat-input-area{padding:16px 24px;border-top:1px solid #30363d;background:#161b22}
+.chat-input-wrapper{display:flex;align-items:flex-end;gap:12px;max-width:800px}
+.chat-input{flex:1;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:12px 16px;color:#e1e4e8;font-size:14px;font-family:inherit;resize:none;min-height:44px;max-height:120px}
+.chat-input:focus{outline:none;border-color:#58a6ff}
+.chat-input::placeholder{color:#484f58}
+.send-btn{width:44px;height:44px;border-radius:10px;background:#1f6feb;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.send-btn:disabled{background:#30363d;cursor:not-allowed}
+.chat-hint{font-size:11px;color:#484f58;margin-top:8px}
+.quick-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.qa{padding:6px 12px;background:#0d1117;border:1px solid #30363d;border-radius:16px;font-size:12px;color:#8b949e;cursor:pointer}
+.qa:hover{border-color:#58a6ff;color:#58a6ff}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item" onclick="location='16-schema.html'">🗄️ Schema</div>
+      <div class="nav-item" onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item active">💬 AI Chat</div>
+      <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
+      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot" id="sdot" style="background:#d29922"></span> <span id="stxt">Connecting...</span></div></div>
+</div>
+<div class="main">
+  <div class="chat-header">
+    <h2>💬 AI Chat</h2>
+    <div id="ctx" style="font-size:12px;color:#8b949e">Loading...</div>
+  </div>
+  <div class="chat-messages" id="msgs"></div>
+  <div class="chat-input-area">
+    <div class="chat-input-wrapper">
+      <textarea class="chat-input" id="inp" placeholder="Ask about reports, SQL, HEDIS measures, or schema..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+      <button class="send-btn" id="sbtn" onclick="send()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>
+    <div class="chat-hint">Enter to send · Shift+Enter for new line · Ollama + HEDIS Knowledge Base</div>
+  </div>
+</div>
+<script>
+const API='http://localhost:8000';
+const msgs=document.getElementById('msgs');
+let timer=null;
+let abortCtrl=null;
+
+// Init
+fetch(API+'/api/health').then(r=>r.json()).then(d=>{
+  document.getElementById('sdot').style.background='#3fb950';
+  document.getElementById('stxt').textContent='HEDIS_RDW — '+d.schema_tables+' tables';
+  document.getElementById('ctx').innerHTML='Schema: <span class="context-chip">'+d.schema_tables+' tables</span> Joins: <span class="context-chip">'+d.joins+'</span> Measures: <span class="context-chip">'+d.hedis_measures+'</span>';
+}).catch(()=>{
+  document.getElementById('sdot').style.background='#f85149';
+  document.getElementById('stxt').textContent='Backend offline';
+  document.getElementById('ctx').innerHTML='<span style="color:#f85149">Backend not running on port 8000</span>';
+});
+
+// Welcome message
+addMsg('ai','Welcome! I can help you:\n\n• Create new reports\n• Generate validation SQL\n• Explore schema and HEDIS measures\n• Explain data mismatches\n\nWhat would you like to do?','');
+addQuickActions();
+
+function addMsg(role,text,src){
+  const d=document.createElement('div');d.className='message';
+  d.innerHTML='<div class="msg-avatar '+role+'">'+(role==='user'?'👤':'🤖')+'</div><div class="msg-body"><div class="msg-name '+role+'">'+(role==='user'?'You':'AI')+'</div><div class="msg-text">'+text+'</div>'+(src?'<div class="msg-src" style="display:inline-block;padding:2px 8px;border-radius:8px;margin-top:6px;'+(src==='ollama'?'background:#3fb95022;color:#3fb950':'background:#1f6feb22;color:#58a6ff')+'">'+(src==='ollama'?'🤖 via Ollama LLM':'⚡ via Rule Engine')+'</div>':'')+'</div>';
+  msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;
+}
+
+function addQuickActions(){
+  const d=document.createElement('div');d.style.cssText='max-width:800px;margin-bottom:24px';
+  d.innerHTML='<div class="quick-actions"><div class="qa" onclick="sendText(\'Create a new report - Source System IDSS Hierarchy with columns Measures, Submission, Compliance %, MRSS, Denominator, Compliant, Optional Exclusion, Required Exclusion, VDE, EDE, ECC, ERF, Source Feed Type, Source System\')">Create IDSS Hierarchy Report</div><div class="qa" onclick="sendText(\'What HEDIS measures do you know about?\')">Show HEDIS Measures</div><div class="qa" onclick="sendText(\'Show me the schema for factqualityreport\')">Explore Schema</div></div>';
+  msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;
+}
+
+function showTyping(){
+  const d=document.createElement('div');d.className='message';d.id='typing-msg';
+  d.innerHTML='<div class="msg-avatar ai">🤖</div><div class="msg-body"><div class="msg-name ai">AI</div><div class="typing-row"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div><div class="typing-timer" id="ttimer">Thinking via Ollama...</div></div>';
+  msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;
+  const t0=Date.now();
+  timer=setInterval(()=>{
+    const el=document.getElementById('ttimer');
+    if(el){const s=Math.floor((Date.now()-t0)/1000);el.textContent='Thinking via Ollama... '+s+'s elapsed';}
+    else clearInterval(timer);
+  },1000);
+}
+
+function hideTyping(){
+  clearInterval(timer);timer=null;
+  const el=document.getElementById('typing-msg');if(el)el.remove();
+}
+
+function sendText(t){document.getElementById('inp').value=t;send();}
+
+async function send(){
+  const text=document.getElementById('inp').value.trim();
+  if(!text)return;
+  document.getElementById('inp').value='';
+  document.getElementById('sbtn').disabled=true;
+  addMsg('user',text,'');
+  showTyping();
+  if(abortCtrl)abortCtrl.abort();
+  abortCtrl=new AbortController();
+  try{
+    const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text}),signal:abortCtrl.signal});
+    const d=await r.json();
+    hideTyping();
+    addMsg('ai',d.response,d.source);
+  }catch(e){
+    hideTyping();
+    if(e.name!=='AbortError')addMsg('ai','⚠ Could not reach backend. Is the server running on port 8000?','error');
+  }
+  document.getElementById('sbtn').disabled=false;
+  document.getElementById('inp').focus();
+}
+</script>
+</body>
+</html>

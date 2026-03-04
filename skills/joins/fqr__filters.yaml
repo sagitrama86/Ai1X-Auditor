@@ -1,0 +1,26 @@
+# ============================================================
+# Join: factqualityreport ↔ factQualityReport_Filters
+# Discovered: auto (composite key match)
+# ============================================================
+join_id: join_fqr_filters
+left_table: factqualityreport
+left_alias: F
+right_table: factQualityReport_Filters
+right_alias: FL
+join_type: INNER
+on:
+  - left_col: factssui
+    right_col: factssui
+  - left_col: SubmissionId
+    right_col: SubmissionId
+relationship: "1:1"
+purpose: "Get attribution model, provider assignments, product/plan, subnetwork"
+confidence: verified
+validation:
+  rows_sampled: 10000
+  match_rate: 1.0
+  join_ratio: "1:1"
+sql: |
+  INNER JOIN factQualityReport_Filters FL
+    ON F.factssui = FL.factssui
+    AND F.SubmissionId = FL.SubmissionId

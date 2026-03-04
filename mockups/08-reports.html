@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Reports</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.main{margin-left:260px;padding:32px 40px}
+.page-header{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}
+.page-header-left h1{font-size:28px;font-weight:600;margin-bottom:8px}
+.page-header-left p{color:#8b949e;font-size:15px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:#1f6feb;color:#fff}
+.reports-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px}
+.report-card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;transition:all .2s}
+.report-card:hover{border-color:#484f58}
+.rc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.rc-title{font-size:17px;font-weight:600}
+.rc-status{padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;background:#3fb95022;color:#3fb950}
+.rc-desc{font-size:13px;color:#8b949e;line-height:1.5;margin-bottom:16px}
+.rc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.rc-stat{text-align:center;padding:10px;background:#0d1117;border-radius:8px}
+.rc-stat-val{font-size:18px;font-weight:700;color:#58a6ff}
+.rc-stat-label{font-size:11px;color:#8b949e;margin-top:2px}
+.rc-actions{display:flex;gap:8px;padding-top:16px;border-top:1px solid #30363d}
+.rc-btn{flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;text-align:center}
+.rc-btn.gen{background:#1f6feb;color:#fff}
+.rc-btn.sec{background:transparent;color:#8b949e;border:1px solid #30363d}
+.add-card{background:#161b22;border:2px dashed #30363d;border-radius:12px;padding:40px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;min-height:280px}
+.add-card:hover{border-color:#58a6ff}
+.add-card h3{font-size:16px;font-weight:600;margin:12px 0 8px}
+.add-card p{font-size:13px;color:#8b949e;text-align:center}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item" onclick="location='16-schema.html'">🗄️ Schema</div>
+      <div class="nav-item" onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item active">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
+      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
+</div>
+<div class="main">
+  <div class="page-header">
+    <div class="page-header-left"><h1>Reports</h1><p>Power BI reports configured for SQL validation.</p></div>
+    <button class="btn btn-primary" onclick="location='06-ai-chat.html'">+ Define New Report</button>
+  </div>
+  <div class="reports-grid" id="grid"></div>
+</div>
+<script>
+const API='http://localhost:8000';
+async function init(){
+  const resp=await fetch(API+'/api/reports');
+  const data=await resp.json();
+  const grid=document.getElementById('grid');
+  data.reports.forEach(r=>{
+    grid.innerHTML+=`<div class="report-card">
+      <div class="rc-header"><div class="rc-title">${r.report_name}</div><div class="rc-status">✓ ${r.status||'ready'}</div></div>
+      <div class="rc-desc">${r.report_id} · ${r.fields_count} fields · ${r.slicers_count} slicers</div>
+      <div class="rc-stats">
+        <div class="rc-stat"><div class="rc-stat-val">${r.fields_count}</div><div class="rc-stat-label">Fields</div></div>
+        <div class="rc-stat"><div class="rc-stat-val">${r.slicers_count}</div><div class="rc-stat-label">Slicers</div></div>
+        <div class="rc-stat"><div class="rc-stat-val">8</div><div class="rc-stat-label">Validations</div></div>
+      </div>
+      <div class="rc-actions">
+        <button class="rc-btn gen" onclick="location='07-generate-sql.html'">⚡ Generate SQL</button>
+        <button class="rc-btn sec" onclick="location='10-compare.html'">🔍 Compare</button>
+        <button class="rc-btn sec" onclick="location='06-ai-chat.html'">💬 Edit</button>
+      </div>
+    </div>`;
+  });
+  grid.innerHTML+=`<div class="add-card" onclick="location='06-ai-chat.html'"><div style="font-size:32px">+</div><h3>Define New Report</h3><p>Chat with AI to create a new report definition.</p></div>`;
+}
+init();
+</script>
+</body>
+</html>

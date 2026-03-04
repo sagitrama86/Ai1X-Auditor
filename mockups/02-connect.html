@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Connect Database</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; min-height: 100vh; }
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; background: #161b22; border-right: 1px solid #30363d; display: flex; flex-direction: column; }
+  .sidebar-logo { padding: 20px; font-size: 18px; font-weight: 700; color: #58a6ff; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 10px; }
+  .sidebar-nav { flex: 1; padding: 12px; }
+  .nav-section { margin-bottom: 20px; }
+  .nav-section-title { font-size: 11px; text-transform: uppercase; color: #8b949e; padding: 8px 12px; letter-spacing: 0.5px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; color: #c9d1d9; cursor: pointer; font-size: 14px; transition: all 0.15s; }
+  .nav-item:hover { background: #1f2937; color: #fff; }
+  .nav-item.active { background: #1f6feb22; color: #58a6ff; }
+  .sidebar-footer { padding: 16px; border-top: 1px solid #30363d; }
+  .schema-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8b949e; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .status-dot.disconnected { background: #f85149; }
+
+  .main { margin-left: 260px; padding: 32px 40px; max-width: 900px; }
+  .page-header { margin-bottom: 32px; }
+  .page-header h1 { font-size: 28px; font-weight: 600; margin-bottom: 8px; }
+  .page-header p { color: #8b949e; font-size: 15px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #8b949e; margin-bottom: 20px; }
+  .breadcrumb a { color: #58a6ff; text-decoration: none; }
+
+  /* Steps indicator */
+  .steps { display: flex; align-items: center; gap: 0; margin-bottom: 40px; }
+  .step { display: flex; align-items: center; gap: 8px; }
+  .step-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+  .step-num.active { background: #1f6feb; color: #fff; }
+  .step-num.done { background: #3fb950; color: #fff; }
+  .step-num.pending { background: #30363d; color: #8b949e; }
+  .step-label { font-size: 13px; }
+  .step-label.active { color: #58a6ff; }
+  .step-label.pending { color: #8b949e; }
+  .step-line { width: 60px; height: 2px; background: #30363d; margin: 0 12px; }
+  .step-line.done { background: #3fb950; }
+
+  /* Form */
+  .form-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 32px; }
+  .form-group { margin-bottom: 24px; }
+  .form-label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; color: #c9d1d9; }
+  .form-hint { font-size: 12px; color: #8b949e; margin-top: 4px; }
+  .form-input { width: 100%; padding: 10px 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; color: #e1e4e8; font-size: 14px; font-family: inherit; transition: border-color 0.15s; }
+  .form-input:focus { outline: none; border-color: #58a6ff; box-shadow: 0 0 0 3px #1f6feb33; }
+  .form-input::placeholder { color: #484f58; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%238b949e' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+
+  /* Radio cards */
+  .auth-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .auth-option { padding: 16px; background: #0d1117; border: 2px solid #30363d; border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+  .auth-option:hover { border-color: #484f58; }
+  .auth-option.selected { border-color: #58a6ff; background: #1f6feb11; }
+  .auth-option-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .auth-option-desc { font-size: 12px; color: #8b949e; }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: #1f6feb; color: #fff; }
+  .btn-primary:hover { background: #388bfd; }
+  .btn-outline { background: transparent; color: #8b949e; border: 1px solid #30363d; }
+  .btn-outline:hover { color: #c9d1d9; border-color: #484f58; }
+  .form-actions { display: flex; justify-content: space-between; margin-top: 32px; }
+
+  .info-banner { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: #1f6feb11; border: 1px solid #1f6feb33; border-radius: 8px; margin-bottom: 24px; }
+  .info-banner svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; }
+  .info-banner-text { font-size: 13px; color: #8b949e; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <svg viewBox="0 0 24 24" fill="#58a6ff"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    AI1X Auditor
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="window.location.href='01-home.html'">🏠 Home</div>
+      <div class="nav-item active">🗄️ Schema</div>
+      <div class="nav-item">🔧 Skills Library</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">Generate</div>
+      <div class="nav-item">💬 AI Chat</div>
+      <div class="nav-item" onclick="window.location.href='08-reports.html'">📄 Reports</div>
+      <div class="nav-item">⌨️ SQL Output</div>
+    </div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer">
+    <div class="schema-status">
+      <span class="status-dot disconnected"></span>
+      No schema loaded
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="breadcrumb">
+    <a href="01-home.html">Home</a> <span>/</span> <span>Connect Database</span>
+  </div>
+
+  <div class="page-header">
+    <h1>Connect & Discover Schema</h1>
+    <p>Connect to your database once. The schema will be cached locally and reused for all future sessions.</p>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step">
+      <div class="step-num active">1</div>
+      <span class="step-label active">Connect</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+      <div class="step-num pending">2</div>
+      <span class="step-label pending">Discover</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+      <div class="step-num pending">3</div>
+      <span class="step-label pending">Review</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+      <div class="step-num pending">4</div>
+      <span class="step-label pending">Save</span>
+    </div>
+  </div>
+
+  <div class="info-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <div class="info-banner-text">
+      This connection is used <strong style="color:#c9d1d9">only for schema discovery</strong>. The tool will read table/column metadata, sample a few rows to understand data patterns, and then disconnect. No data is extracted or stored. You only need to do this again when the schema changes.
+    </div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-group">
+      <label class="form-label">Database Type</label>
+      <div class="auth-options">
+        <div class="auth-option selected">
+          <div class="auth-option-title">Azure SQL</div>
+          <div class="auth-option-desc">Azure SQL Database / Synapse</div>
+        </div>
+        <div class="auth-option">
+          <div class="auth-option-title">Oracle</div>
+          <div class="auth-option-desc">Oracle Database / RDW</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Server</label>
+        <input class="form-input" type="text" placeholder="myserver.database.windows.net" value="hedis-prod.database.windows.net">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Database</label>
+        <input class="form-input" type="text" placeholder="database_name" value="HEDIS_RDW">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Authentication</label>
+      <div class="auth-options">
+        <div class="auth-option selected">
+          <div class="auth-option-title">Azure AD (SSO)</div>
+          <div class="auth-option-desc">Use your Azure Active Directory credentials</div>
+        </div>
+        <div class="auth-option">
+          <div class="auth-option-title">SQL Authentication</div>
+          <div class="auth-option-desc">Username and password</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Schema(s) to discover</label>
+      <input class="form-input" type="text" placeholder="dbo, hedis, reporting (comma-separated, or * for all)" value="dbo">
+      <div class="form-hint">Specify which schemas to scan. Use * to discover all schemas.</div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="window.location.href='01-home.html'">Cancel</button>
+      <button class="btn btn-primary" onclick="window.location.href='03-discovering.html'">
+        🔍 Connect & Discover Schema
+      </button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

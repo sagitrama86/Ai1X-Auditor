@@ -1,0 +1,246 @@
+# ============================================================
+# Table: dimorganization
+# ============================================================
+table_name: dimorganization
+schema: dbo
+classification: dimension
+description: "Organization/client dimension. One row per health plan that reports HEDIS."
+row_count_approx: 156
+grain:
+  description: "One row per organizationid"
+  columns: [organizationid]
+joins_with:
+  - table: factqualityreport
+    on: [organizationid]
+    relationship: "1:many"
+problems_and_suggestions: []
+columns:
+  organizationid:
+    data_type: INT
+    nullable: false
+    pk: true
+    fk: null
+    grain: "Unique organization identifier"
+    record_level_info: "Each org is a separate HEDIS-reporting health plan."
+    same_in_other_tables:
+      - {table: factqualityreport, column: organizationid}
+      - {table: qualitycutpoints, column: organizationId}
+  organizationname:
+    data_type: VARCHAR(200)
+    nullable: false
+    pk: false
+    fk: null
+    grain: "Organization display name"
+    record_level_info: "Used as primary slicer in all reports."
+    same_in_other_tables:
+      - {table: factqualityreport, column: organizationname, relationship: "Denormalized copy"}
+
+---
+# ============================================================
+# Table: dimproductcategory
+# ============================================================
+table_name: dimproductcategory
+schema: dbo
+classification: dimension
+description: "Product category / Line of Business dimension. Maps ProductCategoryID to LOB names."
+row_count_approx: 12
+grain:
+  description: "One row per ProductCategoryID"
+  columns: [ProductCategoryID]
+joins_with:
+  - table: factqualityreport
+    on: [ProductCategoryID]
+    relationship: "1:many"
+columns:
+  ProductCategoryID:
+    data_type: INT
+    nullable: false
+    pk: true
+    grain: "LOB identifier"
+    record_level_info: "Maps to Commercial, Medicaid, Medicare, etc."
+    same_in_other_tables:
+      - {table: factqualityreport, column: ProductCategoryID}
+      - {table: qualitycutpoints, column: ProductCategoryId}
+  productcategoryname:
+    data_type: VARCHAR(100)
+    nullable: false
+    pk: false
+    grain: "LOB display name"
+    record_level_info: "Used as 'Line of Business' slicer. Values: Commercial, Medicaid, Medicare."
+
+---
+# ============================================================
+# Table: dimprovidergroup
+# ============================================================
+table_name: dimprovidergroup
+schema: dbo
+classification: dimension
+description: "Provider group dimension. One row per provider group per domain."
+row_count_approx: 3421
+grain:
+  description: "One row per providerGroupID + domainid combination"
+  columns: [providerGroupID, domainid]
+joins_with:
+  - table: factqualityreport
+    on: [providerGroupID, domainid]
+    relationship: "1:many"
+columns:
+  providerGroupID:
+    data_type: INT
+    nullable: false
+    pk: true
+    grain: "Provider group identifier"
+    same_in_other_tables:
+      - {table: factqualityreport, column: providerGroupID}
+  domainid:
+    data_type: INT
+    nullable: false
+    pk: true
+    grain: "Domain/tenant identifier — part of composite PK"
+    same_in_other_tables:
+      - {table: factqualityreport, column: domainid}
+  providerGroupName:
+    data_type: VARCHAR(200)
+    nullable: false
+    pk: false
+    grain: "Provider group display name"
+
+---
+# ============================================================
+# Table: dimprovider_RDM
+# ============================================================
+table_name: dimprovider_RDM
+schema: dbo
+classification: dimension
+description: "Provider Reference Data Management dimension. Individual provider details."
+row_count_approx: 45892
+grain:
+  description: "One row per domainid + sourcesystemuniqueidentifier"
+  columns: [domainid, sourcesystemuniqueidentifier]
+joins_with:
+  - table: factqualityreport
+    on_expression: "F.KeyToProvider = CONCAT(PR.domainid, '-', PR.sourcesystemuniqueidentifier)"
+    relationship: "1:many"
+    note: "Concatenation-based join — not a standard FK"
+problems_and_suggestions:
+  - problem: "No single-column FK from factqualityreport — requires CONCAT join"
+    suggestion: "Add a computed column matching KeyToProvider format, or add KeyToProvider to this table"
+columns:
+  domainid:
+    data_type: INT
+    nullable: false
+    pk: false
+    grain: "Domain/tenant identifier"
+    record_level_info: "First part of the CONCAT key: CONCAT(domainid, '-', ssui)"
+  sourcesystemuniqueidentifier:
+    data_type: VARCHAR(50)
+    nullable: false
+    pk: false
+    grain: "Provider identifier from source system"
+    record_level_info: "Second part of the CONCAT key"
+  providerNPI:
+    data_type: VARCHAR(20)
+    nullable: true
+    grain: "National Provider Identifier"
+  specialty:
+    data_type: VARCHAR(100)
+    nullable: true
+    grain: "Provider specialty"
+
+---
+# ============================================================
+# Table: qualitycutpoints
+# ============================================================
+table_name: qualitycutpoints
+schema: dbo
+classification: lookup
+description: >
+  NCQA percentile cutpoints for quality measures. Defines the thresholds
+  for <25th, 25th, 50th, 75th, 90th percentile rankings. Published by
+  NCQA annually. One row per org + product + domain + year + measure.
+row_count_approx: 2340
+grain:
+  description: "One row per organizationId + ProductCategoryId + domainid + MeasurementYear + SubMeasureCode"
+  columns: [organizationId, ProductCategoryId, domainid, MeasurementYear, SubMeasureCode]
+joins_with:
+  - table: factqualityreport
+    join_type: LEFT
+    on: [organizationId, ProductCategoryId, domainid, MeasurementYear, SubMeasureCode]
+    relationship: "1:many"
+    note: "LEFT JOIN — not all measures have cutpoints"
+columns:
+  organizationId: {data_type: INT, nullable: false, grain: "Organization"}
+  ProductCategoryId: {data_type: INT, nullable: false, grain: "LOB"}
+  domainid: {data_type: INT, nullable: false, grain: "Domain"}
+  MeasurementYear: {data_type: VARCHAR(4), nullable: false, grain: "Year"}
+  SubMeasureCode: {data_type: VARCHAR(20), nullable: false, grain: "Measure"}
+  Cutpoint3:
+    data_type: DECIMAL(5,2)
+    nullable: true
+    grain: "25th percentile threshold"
+    record_level_info: "Compliance % below this = <25th percentile"
+  Cutpoint5:
+    data_type: DECIMAL(5,2)
+    nullable: true
+    grain: "50th percentile threshold"
+    record_level_info: "Compliance % between Cutpoint3 and Cutpoint5 = 25th percentile"
+  Cutpoint7:
+    data_type: DECIMAL(5,2)
+    nullable: true
+    grain: "75th percentile threshold"
+  Cutpoint8:
+    data_type: DECIMAL(5,2)
+    nullable: true
+    grain: "90th percentile threshold"
+    record_level_info: "Compliance % at or above this = 90th percentile"
+
+---
+# ============================================================
+# Table: keyvaluemapping
+# ============================================================
+table_name: keyvaluemapping
+schema: dbo
+classification: lookup
+description: >
+  Lookup table for measure merging and key-value translations. Used when
+  NCQA merges or renames measures across years. Maps old measure codes
+  to new ones via the 'Measure_Merge' SubModuleName.
+row_count_approx: 892
+grain:
+  description: "One row per KeyName + ADDITIONALKEY1 + ADDITIONALKEY2 + SubModuleName"
+  columns: [KeyName, ADDITIONALKEY1, ADDITIONALKEY2, SubModuleName]
+joins_with:
+  - table: factqualityreport
+    join_type: LEFT
+    on_expression: >
+      KVM.ADDITIONALKEY2 = SUBSTRING(F.MeasurementYear, 1, 4)
+      AND KVM.ADDITIONALKEY1 = F.KEYVALUEMEASUREID
+      AND KVM.KeyName = F.submeasurecode
+      AND KVM.SubModuleName = 'Measure_Merge'
+    note: "LEFT JOIN — most measures are not merged"
+columns:
+  KeyName:
+    data_type: VARCHAR(50)
+    nullable: false
+    grain: "Original measure code"
+    record_level_info: "Matches factqualityreport.submeasurecode"
+  KEYVALUE:
+    data_type: VARCHAR(50)
+    nullable: true
+    grain: "Mapped/merged measure code"
+    record_level_info: >
+      When not NULL, this replaces the original submeasurecode in display.
+      The measure name is then looked up from measuredetails using this value.
+  ADDITIONALKEY1:
+    data_type: VARCHAR(50)
+    nullable: true
+    grain: "Additional key 1 — maps to keyvaluemeasureid"
+  ADDITIONALKEY2:
+    data_type: VARCHAR(50)
+    nullable: true
+    grain: "Additional key 2 — maps to measurement year (first 4 chars)"
+  SubModuleName:
+    data_type: VARCHAR(50)
+    nullable: true
+    grain: "Module name — filter for 'Measure_Merge'"
+    record_level_info: "Only rows with SubModuleName = 'Measure_Merge' are used in quality reports"

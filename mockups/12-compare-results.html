@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Comparison Results</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.main{margin-left:260px;padding:32px 40px}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:#8b949e;margin-bottom:20px}
+.breadcrumb a{color:#58a6ff;text-decoration:none}
+.page-header{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}
+.page-header-left h1{font-size:28px;font-weight:600;margin-bottom:8px}
+.page-header-left p{color:#8b949e;font-size:15px}
+.actions{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:#1f6feb;color:#fff}
+.btn-outline{background:transparent;color:#8b949e;border:1px solid #30363d}
+
+/* Summary cards */
+.summary{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:28px}
+.scard{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px;text-align:center}
+.scard-val{font-size:24px;font-weight:700}
+.scard-label{font-size:11px;color:#8b949e;margin-top:4px}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid #30363d;margin-bottom:24px}
+.tab{padding:12px 20px;font-size:14px;color:#8b949e;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab:hover{color:#c9d1d9}
+.tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.tab .badge{display:inline-block;background:#30363d;color:#c9d1d9;font-size:11px;padding:1px 7px;border-radius:10px;margin-left:6px}
+.tab .badge.red{background:#f8514933;color:#f85149}
+.tab .badge.yellow{background:#d2992233;color:#d29922}
+.tab .badge.green{background:#3fb95033;color:#3fb950}
+
+/* Tab content */
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Mismatch table */
+.diff-table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden}
+.diff-table th{text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;background:#0d1117}
+.diff-table td{padding:10px 14px;border-bottom:1px solid #21262d;font-size:13px}
+.diff-table tr:last-child td{border-bottom:none}
+.val-pbi{color:#58a6ff}
+.val-sql{color:#3fb950}
+.val-diff{color:#f85149;font-weight:600}
+.row-key{font-family:'SF Mono',monospace;font-size:11px;color:#8b949e;max-width:250px}
+
+/* Validation results */
+.vr{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #21262d}
+.vr:last-child{border-bottom:none}
+.vr-icon{font-size:16px;width:24px;text-align:center}
+.vr-name{font-size:13px;font-weight:500;flex:1}
+.vr-detail{font-size:12px;color:#8b949e}
+.vr-status{font-size:12px;font-weight:600;padding:3px 10px;border-radius:8px}
+.vr-status.pass{background:#3fb95022;color:#3fb950}
+.vr-status.fail{background:#f8514922;color:#f85149}
+.vr-status.warn{background:#d2992222;color:#d29922}
+
+/* Full data table */
+.data-table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden;font-size:12px}
+.data-table th{text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;background:#0d1117;position:sticky;top:0}
+.data-table td{padding:6px 10px;border-bottom:1px solid #21262d}
+.data-table tr.mismatch{background:#f8514911}
+.cell-match{color:#c9d1d9}
+.cell-mismatch{color:#f85149;font-weight:600;background:#f8514922;padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item"onclick="location='16-schema.html'">🗄️ Schema</div><div class="nav-item"onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
+      <div class="nav-item active">🔍 Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW — 23 tables</div></div>
+</div>
+<div class="main">
+  <div class="breadcrumb"><a href="05-home-loaded.html">Home</a> / <a href="10-compare.html">Compare</a> / <span>Results</span></div>
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>Comparison Results</h1>
+      <p>MeasureList · Org=Acme Health · Year=2024 · Run at 2026-03-01 15:30</p>
+    </div>
+    <div class="actions">
+      <button class="btn btn-outline">📋 Copy</button>
+      <button class="btn btn-outline">💾 PDF</button>
+      <button class="btn btn-outline">📧 Email</button>
+      <button class="btn btn-primary" onclick="location='10-compare.html'">🔄 Re-run</button>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="scard"><div class="scard-val" style="color:#58a6ff">142</div><div class="scard-label">Power BI Rows</div></div>
+    <div class="scard"><div class="scard-val" style="color:#58a6ff">142</div><div class="scard-label">SQL Rows</div></div>
+    <div class="scard"><div class="scard-val" style="color:#3fb950">139</div><div class="scard-label">Rows Match</div></div>
+    <div class="scard"><div class="scard-val" style="color:#f85149">3</div><div class="scard-label">Rows Mismatch</div></div>
+    <div class="scard"><div class="scard-val" style="color:#3fb950">99.8%</div><div class="scard-label">Cell Match Rate</div></div>
+    <div class="scard"><div class="scard-val" style="color:#f85149">5</div><div class="scard-label">Cell Mismatches</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('mismatches')">Mismatches <span class="badge red">5</span></div>
+    <div class="tab" onclick="showTab('validations')">Validations <span class="badge green">7/8</span></div>
+    <div class="tab" onclick="showTab('fulldata')">Full Data <span class="badge">142 rows</span></div>
+    <div class="tab" onclick="showTab('sql')">Generated SQL</div>
+  </div>
+
+  <!-- Tab: Mismatches -->
+  <div class="tab-content active" id="tab-mismatches">
+    <table class="diff-table">
+      <thead><tr><th>Row (Composite Key)</th><th>Field</th><th>Power BI Value</th><th>SQL Value</th><th>Diff</th><th>Severity</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="row-key">AWC-01 Adolescent Well-Care · Submission 1</td>
+          <td><strong>Compliant</strong></td>
+          <td class="val-pbi">1,247</td>
+          <td class="val-sql">1,248</td>
+          <td class="val-diff">-1</td>
+          <td><span style="color:#f85149">✕ error</span></td>
+        </tr>
+        <tr>
+          <td class="row-key">AWC-01 Adolescent Well-Care · Submission 1</td>
+          <td><strong>Denominator</strong></td>
+          <td class="val-pbi">1,500</td>
+          <td class="val-sql">1,501</td>
+          <td class="val-diff">-1</td>
+          <td><span style="color:#f85149">✕ error</span></td>
+        </tr>
+        <tr>
+          <td class="row-key">CBP-01 Blood Pressure · Submission 1</td>
+          <td><strong>Current PCTL</strong></td>
+          <td class="val-pbi">50th</td>
+          <td class="val-sql">75th</td>
+          <td class="val-diff">≠</td>
+          <td><span style="color:#f85149">✕ error</span></td>
+        </tr>
+        <tr>
+          <td class="row-key">CIS-01 Immunizations · Submission 2</td>
+          <td><strong>Compliance (%)</strong></td>
+          <td class="val-pbi">85.43</td>
+          <td class="val-sql">85.44</td>
+          <td class="val-diff">-0.01</td>
+          <td><span style="color:#d29922">⚠ rounding</span></td>
+        </tr>
+        <tr>
+          <td class="row-key">CIS-01 Immunizations · Submission 2</td>
+          <td><strong>Compliant</strong></td>
+          <td class="val-pbi">342</td>
+          <td class="val-sql">343</td>
+          <td class="val-diff">-1</td>
+          <td><span style="color:#f85149">✕ error</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tab: Validations -->
+  <div class="tab-content" id="tab-validations">
+    <div style="background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden">
+      <div class="vr"><span class="vr-icon">✅</span><span class="vr-name">Compliance (%) range 0–100</span><span class="vr-detail">142 rows checked</span><span class="vr-status pass">PASS</span></div>
+      <div class="vr"><span class="vr-icon">✅</span><span class="vr-name">Compliant ≤ Denominator</span><span class="vr-detail">142 rows checked</span><span class="vr-status pass">PASS</span></div>
+      <div class="vr"><span class="vr-icon">✅</span><span class="vr-name">Non Compliant ≤ Denominator</span><span class="vr-detail">142 rows checked</span><span class="vr-status pass">PASS</span></div>
+      <div class="vr"><span class="vr-icon">✅</span><span class="vr-name">Current PCTL allowed values</span><span class="vr-detail">&lt;25th, 25th, 50th, 75th, 90th, NULL</span><span class="vr-status pass">PASS</span></div>
+      <div class="vr"><span class="vr-icon">✅</span><span class="vr-name">No duplicate rows (composite key)</span><span class="vr-detail">Measures + Submission</span><span class="vr-status pass">PASS</span></div>
+      <div class="vr"><span class="vr-icon">✅</span><span class="vr-name">Entity length 1–100</span><span class="vr-detail">142 rows checked</span><span class="vr-status pass">PASS</span></div>
+      <div class="vr"><span class="vr-icon">⚠️</span><span class="vr-name">Measures regex ^[A-Z]{2,5}-.*</span><span class="vr-detail">3 rows don't match pattern</span><span class="vr-status warn">3 WARNINGS</span></div>
+      <div class="vr"><span class="vr-icon">✅</span><span class="vr-name">Cross-report: Compliant = Eligible Population (VBC)</span><span class="vr-detail">All measures match</span><span class="vr-status pass">PASS</span></div>
+    </div>
+  </div>
+
+  <!-- Tab: Full Data -->
+  <div class="tab-content" id="tab-fulldata">
+    <div style="max-height:500px;overflow:auto;border-radius:12px;border:1px solid #30363d">
+      <table class="data-table">
+        <thead><tr><th>Measures</th><th>Submission</th><th>Compliance (%)</th><th>Denominator</th><th>Compliant</th><th>Non Compliant</th><th>Current PCTL</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr><td>AAB-01 Antibiotics</td><td>Sub 1</td><td class="cell-match">72.15</td><td class="cell-match">890</td><td class="cell-match">642</td><td class="cell-match">248</td><td class="cell-match">50th</td><td style="color:#58a6ff">PBI</td></tr>
+          <tr><td>AAB-01 Antibiotics</td><td>Sub 1</td><td class="cell-match">72.15</td><td class="cell-match">890</td><td class="cell-match">642</td><td class="cell-match">248</td><td class="cell-match">50th</td><td style="color:#3fb950">SQL</td></tr>
+          <tr class="mismatch"><td>AWC-01 Adolescent Well-Care</td><td>Sub 1</td><td class="cell-match">83.13</td><td><span class="cell-mismatch">1,500</span></td><td><span class="cell-mismatch">1,247</span></td><td class="cell-match">253</td><td class="cell-match">75th</td><td style="color:#58a6ff">PBI</td></tr>
+          <tr class="mismatch"><td>AWC-01 Adolescent Well-Care</td><td>Sub 1</td><td class="cell-match">83.14</td><td><span class="cell-mismatch">1,501</span></td><td><span class="cell-mismatch">1,248</span></td><td class="cell-match">253</td><td class="cell-match">75th</td><td style="color:#3fb950">SQL</td></tr>
+          <tr><td>BCS-01 Breast Cancer</td><td>Sub 1</td><td class="cell-match">65.20</td><td class="cell-match">1,200</td><td class="cell-match">782</td><td class="cell-match">418</td><td class="cell-match">25th</td><td style="color:#58a6ff">PBI</td></tr>
+          <tr><td>BCS-01 Breast Cancer</td><td>Sub 1</td><td class="cell-match">65.20</td><td class="cell-match">1,200</td><td class="cell-match">782</td><td class="cell-match">418</td><td class="cell-match">25th</td><td style="color:#3fb950">SQL</td></tr>
+          <tr class="mismatch"><td>CBP-01 Blood Pressure</td><td>Sub 1</td><td class="cell-match">78.90</td><td class="cell-match">2,340</td><td class="cell-match">1,846</td><td class="cell-match">494</td><td><span class="cell-mismatch">50th</span></td><td style="color:#58a6ff">PBI</td></tr>
+          <tr class="mismatch"><td>CBP-01 Blood Pressure</td><td>Sub 1</td><td class="cell-match">78.90</td><td class="cell-match">2,340</td><td class="cell-match">1,846</td><td class="cell-match">494</td><td><span class="cell-mismatch">75th</span></td><td style="color:#3fb950">SQL</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px;color:#484f58;margin-top:8px">Showing 8 of 284 rows (142 PBI + 142 SQL paired). Mismatched rows highlighted in red. <span style="color:#58a6ff">PBI</span> = Power BI, <span style="color:#3fb950">SQL</span> = Database.</div>
+  </div>
+
+  <!-- Tab: SQL -->
+  <div class="tab-content" id="tab-sql">
+    <div style="background:#0d1117;border:1px solid #30363d;border-radius:12px;padding:20px;font-family:'SF Mono',monospace;font-size:12px;line-height:1.7;color:#c9d1d9;max-height:500px;overflow:auto;white-space:pre-wrap"><span style="color:#8b949e">-- Quality Dashboard - MeasureList
+-- Generated by AI1X Auditor on 2026-03-01
+-- Filters: Organization=Acme Health, Year=2024
+-- Skills used: 8 joins, 2 domain rules, 11 filters</span>
+
+<span style="color:#ff7b72">WITH</span> base_data <span style="color:#ff7b72">AS</span> (
+    <span style="color:#ff7b72">SELECT</span>
+        F.organizationid,
+        F.organizationname,
+        FL.productname,
+        FL.healthplanname,
+        <span style="color:#8b949e">-- Clinical status codes (skill: hedis_clinical_status_codes)</span>
+        <span style="color:#ff7b72">CASE WHEN</span> F.clinicalonlystatus = <span style="color:#79c0ff">16</span> <span style="color:#ff7b72">THEN</span> F.patientSSUI <span style="color:#ff7b72">ELSE NULL END</span> <span style="color:#ff7b72">AS</span> patientSSUIDVDE,
+        <span style="color:#ff7b72">CASE WHEN</span> F.clinicalonlystatus = <span style="color:#79c0ff">17</span> <span style="color:#ff7b72">THEN</span> F.patientSSUI <span style="color:#ff7b72">ELSE NULL END</span> <span style="color:#ff7b72">AS</span> patientSSUIDE,
+        ...
+    <span style="color:#ff7b72">FROM</span> factqualityreport F
+    <span style="color:#ff7b72">INNER JOIN</span> factQualityReport_Filters FL
+        <span style="color:#ff7b72">ON</span> F.factssui = FL.factssui <span style="color:#ff7b72">AND</span> F.SubmissionId = FL.SubmissionId
+    ...
+    <span style="color:#ff7b72">WHERE</span> F.organizationname = <span style="color:#a5d6ff">'Acme Health'</span>
+        <span style="color:#ff7b72">AND</span> F.MeasurementYear = <span style="color:#a5d6ff">'2024'</span>
+        <span style="color:#ff7b72">AND</span> F.isRaw = <span style="color:#79c0ff">0</span>
+        <span style="color:#ff7b72">AND</span> F.isUtilization = <span style="color:#79c0ff">0</span>
+),
+<span style="color:#8b949e">-- ... (387 lines total)</span>
+
+<span style="color:#ff7b72">SELECT</span> * <span style="color:#ff7b72">FROM</span> final_metrics <span style="color:#ff7b72">ORDER BY</span> <span style="color:#79c0ff">1</span>, <span style="color:#79c0ff">2</span>;</div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-outline">📋 Copy SQL</button>
+      <button class="btn btn-outline">💾 Download .sql</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+</script>
+</body>
+</html>

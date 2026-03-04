@@ -1,0 +1,9 @@
+Measures,Submission,Compliance (%),Denominator,Compliant,Non Compliant,Required Exclusion,Current PCTL
+AWC-01* Adolescent Well-Care Visits,Submission 1,83.14,1501,1248,253,12,75th
+BCS-01 Breast Cancer Screening,Submission 1,65.20,1200,782,418,8,25th
+CBP-01 Controlling High Blood Pressure,Submission 1,78.90,2340,1846,494,15,75th
+CIS-01 Childhood Immunization Status,Submission 1,85.44,980,838,142,5,75th
+COL-01 Colorectal Cancer Screening,Submission 1,62.50,1600,1000,600,20,25th
+CDC-01 Comprehensive Diabetes Care,Submission 1,71.30,1100,784,316,10,50th
+AWC-01* Adolescent Well-Care Visits,Submission 2,81.50,1400,1141,259,11,75th
+BCS-01 Breast Cancer Screening,Submission 2,63.80,1150,734,416,7,25th

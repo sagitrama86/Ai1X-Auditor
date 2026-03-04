@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Running Comparison</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.main{margin-left:260px;padding:32px 40px;max-width:900px}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:#8b949e;margin-bottom:20px}
+.breadcrumb a{color:#58a6ff;text-decoration:none}
+.page-header{margin-bottom:28px}
+.page-header h1{font-size:28px;font-weight:600;margin-bottom:8px}
+.page-header p{color:#8b949e;font-size:15px}
+.steps{display:flex;align-items:center;gap:0;margin-bottom:36px}
+.step{display:flex;align-items:center;gap:8px}
+.step-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.step-num.active{background:#1f6feb;color:#fff}
+.step-num.done{background:#3fb950;color:#fff}
+.step-num.pending{background:#30363d;color:#8b949e}
+.step-label{font-size:13px}
+.step-label.active{color:#58a6ff}
+.step-label.done{color:#3fb950}
+.step-label.pending{color:#8b949e}
+.step-line{width:60px;height:2px;margin:0 12px}
+.step-line.done{background:#3fb950}
+.step-line.pending{background:#30363d}
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:28px}
+.log{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:16px;font-family:'SF Mono',monospace;font-size:13px;line-height:2}
+.log-done{color:#3fb950}
+.log-run{color:#d29922}
+.log-info{color:#8b949e;margin-left:24px}
+.log-val{color:#58a6ff;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}
+.stat{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:16px;text-align:center}
+.stat-val{font-size:28px;font-weight:700;color:#58a6ff}
+.stat-label{font-size:12px;color:#8b949e;margin-top:4px}
+.progress{width:100%;height:6px;background:#30363d;border-radius:3px;margin-top:24px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:3px;width:100%;transition:width .5s}
+.progress-text{font-size:12px;color:#3fb950;margin-top:8px;text-align:right}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .15s;margin-top:20px}
+.btn-primary{background:#1f6feb;color:#fff}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item"onclick="location='16-schema.html'">🗄️ Schema</div><div class="nav-item"onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
+      <div class="nav-item active">🔍 Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW — 23 tables</div></div>
+</div>
+<div class="main">
+  <div class="breadcrumb"><a href="05-home-loaded.html">Home</a> / <a href="10-compare.html">Compare</a> / <span>Running</span></div>
+  <div class="page-header"><h1>Running Comparison</h1><p>MeasureList · Org=Acme Health · Year=2024</p></div>
+
+  <div class="steps">
+    <div class="step"><div class="step-num done">✓</div><span class="step-label done">Configure</span></div>
+    <div class="step-line done"></div>
+    <div class="step"><div class="step-num done">✓</div><span class="step-label done">Power BI Data</span></div>
+    <div class="step-line done"></div>
+    <div class="step"><div class="step-num done">✓</div><span class="step-label done">Run</span></div>
+    <div class="step-line done"></div>
+    <div class="step"><div class="step-num active">4</div><span class="step-label active">Results</span></div>
+  </div>
+
+  <div class="card">
+    <div class="log">
+      <div><span class="log-done">✓</span> Power BI data loaded — <span class="log-val">142 rows</span>, 16 columns</div>
+      <div><span class="log-done">✓</span> SQL generated from skills — <span class="log-val">387 lines</span></div>
+      <div><span class="log-done">✓</span> Connected to <span class="log-val">hedis-prod.database.windows.net</span></div>
+      <div><span class="log-done">✓</span> SQL executed — <span class="log-val">142 rows</span> returned in 2.3s</div>
+      <div><span class="log-done">✓</span> Schema aligned — <span class="log-val">16/16 columns</span> mapped</div>
+      <div><span class="log-done">✓</span> Rows matched on composite key (Measures + Submission)</div>
+      <div class="log-info">├── 142 matched, 0 extra in Power BI, 0 missing from Power BI</div>
+      <div><span class="log-done">✓</span> Cell comparison complete — <span class="log-val">2,272 cells</span> compared</div>
+      <div class="log-info">├── <span style="color:#3fb950">2,267 match</span>, <span style="color:#f85149">5 mismatches</span></div>
+      <div><span class="log-done">✓</span> Validation checks — <span class="log-val">8 rules</span> executed</div>
+      <div class="log-info">├── <span style="color:#3fb950">7 passed</span>, <span style="color:#d29922">1 warning</span>, <span style="color:#f85149">0 failed</span></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-val">142</div><div class="stat-label">Rows Matched</div></div>
+      <div class="stat"><div class="stat-val" style="color:#3fb950">99.8%</div><div class="stat-label">Cell Match Rate</div></div>
+      <div class="stat"><div class="stat-val" style="color:#f85149">5</div><div class="stat-label">Mismatches</div></div>
+      <div class="stat"><div class="stat-val" style="color:#3fb950">7/8</div><div class="stat-label">Validations Pass</div></div>
+    </div>
+
+    <div class="progress"><div class="progress-fill"></div></div>
+    <div class="progress-text">✓ Comparison complete</div>
+
+    <div style="text-align:right">
+      <button class="btn btn-primary" onclick="location='12-compare-results.html'">View Full Results →</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,174 @@
+# ============================================================
+# Join: factqualityreport ↔ dimorganization
+# ============================================================
+join_id: join_fqr_dimorg
+left_table: factqualityreport
+left_alias: F
+right_table: dimorganization
+right_alias: org
+join_type: INNER
+on:
+  - left_col: organizationid
+    right_col: organizationid
+relationship: "many:1"
+purpose: "Get organization name"
+confidence: verified
+sql: |
+  INNER JOIN dimorganization org
+    ON org.organizationid = F.organizationid
+
+---
+# ============================================================
+# Join: factqualityreport ↔ measuredetails (conditional)
+# ============================================================
+join_id: join_fqr_measuredetails
+left_table: factqualityreport
+left_alias: F
+right_table: measuredetails
+right_alias: M
+join_type: INNER
+on_expression: |
+  (F.keyvaluemeasureid IS NOT NULL AND F.keyvaluemeasureid = M.measureid)
+  OR (F.keyvaluemeasureid IS NULL AND F.clinicalmeasureid = M.clinicalmeasureid)
+relationship: "many:1"
+purpose: "Get measure name, type, domain, category, flags"
+note: "Conditional OR join — keyvaluemeasureid takes precedence, clinicalmeasureid is fallback"
+confidence: verified
+validation:
+  rows_sampled: 50000
+  match_rate: 1.0
+  keyvaluemeasureid_populated: "86%"
+  clinicalmeasureid_fallback: "14%"
+sql: |
+  INNER JOIN measuredetails M
+    ON (F.keyvaluemeasureid IS NOT NULL AND F.keyvaluemeasureid = M.measureid)
+    OR (F.keyvaluemeasureid IS NULL AND F.clinicalmeasureid = M.clinicalmeasureid)
+
+---
+# ============================================================
+# Join: factqualityreport ↔ dimproductcategory
+# ============================================================
+join_id: join_fqr_dimproductcategory
+left_table: factqualityreport
+left_alias: F
+right_table: dimproductcategory
+right_alias: D
+join_type: INNER
+on:
+  - left_col: ProductCategoryID
+    right_col: ProductCategoryID
+relationship: "many:1"
+purpose: "Get Line of Business name"
+confidence: verified
+sql: |
+  INNER JOIN dimproductcategory D
+    ON F.ProductCategoryID = D.ProductCategoryID
+
+---
+# ============================================================
+# Join: factqualityreport ↔ dimprovidergroup
+# ============================================================
+join_id: join_fqr_dimprovidergroup
+left_table: factqualityreport
+left_alias: F
+right_table: dimprovidergroup
+right_alias: PG
+join_type: INNER
+on:
+  - left_col: providerGroupID
+    right_col: providerGroupID
+  - left_col: domainid
+    right_col: domainid
+relationship: "many:1"
+purpose: "Get provider group name"
+confidence: verified
+sql: |
+  INNER JOIN dimprovidergroup PG
+    ON F.providerGroupID = PG.providerGroupID
+    AND F.domainid = PG.domainid
+
+---
+# ============================================================
+# Join: factqualityreport ↔ dimprovider_RDM (CONCAT)
+# ============================================================
+join_id: join_fqr_dimprovider_rdm
+left_table: factqualityreport
+left_alias: F
+right_table: dimprovider_RDM
+right_alias: PR
+join_type: INNER
+on_expression: "F.KeyToProvider = CONCAT(PR.domainid, '-', PR.sourcesystemuniqueidentifier)"
+relationship: "many:1"
+purpose: "Get provider NPI, specialty, details"
+note: "Concatenation-based join — KeyToProvider is domainid + '-' + ssui"
+confidence: verified
+validation:
+  sample_values:
+    KeyToProvider: ["1042-PAT00123", "1042-PAT00456", "2001-EVT00789"]
+    domainid: [1042, 1042, 2001]
+    ssui: ["PAT00123", "PAT00456", "EVT00789"]
+  match_rate: 1.0
+sql: |
+  INNER JOIN dimprovider_RDM PR
+    ON F.KeyToProvider = CONCAT(PR.domainid, '-', PR.sourcesystemuniqueidentifier)
+
+---
+# ============================================================
+# Join: factqualityreport ↔ qualitycutpoints (LEFT)
+# ============================================================
+join_id: join_fqr_qualitycutpoints
+left_table: factqualityreport
+left_alias: F
+right_table: qualitycutpoints
+right_alias: QC
+join_type: LEFT
+on:
+  - left_col: organizationId
+    right_col: organizationId
+  - left_col: ProductCategoryId
+    right_col: ProductCategoryId
+  - left_col: domainid
+    right_col: domainid
+  - left_expression: "SUBSTRING(F.MeasurementYear, 1, 4)"
+    right_col: MeasurementYear
+  - left_col: submeasurecode
+    right_col: SubMeasureCode
+    via_table: measuredetails
+    via_alias: M
+relationship: "many:0..1"
+purpose: "Get NCQA percentile cutpoints for ranking"
+note: "LEFT JOIN — not all measure+org combinations have cutpoints"
+confidence: verified
+sql: |
+  LEFT JOIN qualitycutpoints QC
+    ON QC.organizationId = F.organizationId
+    AND QC.ProductCategoryId = F.ProductCategoryId
+    AND QC.domainid = F.domainid
+    AND SUBSTRING(F.MeasurementYear, 1, 4) = QC.MeasurementYear
+    AND QC.SubMeasureCode = M.SubMeasureCode
+
+---
+# ============================================================
+# Join: factqualityreport ↔ keyvaluemapping (LEFT)
+# ============================================================
+join_id: join_fqr_keyvaluemapping
+left_table: factqualityreport
+left_alias: F
+right_table: keyvaluemapping
+right_alias: KVM
+join_type: LEFT
+on_expression: |
+  KVM.ADDITIONALKEY2 = SUBSTRING(F.MeasurementYear, 1, 4)
+  AND KVM.ADDITIONALKEY1 = F.KEYVALUEMEASUREID
+  AND KVM.KeyName = F.submeasurecode
+  AND KVM.SubModuleName = 'Measure_Merge'
+relationship: "many:0..1"
+purpose: "Measure merging — maps old measure codes to new ones"
+note: "LEFT JOIN — most measures are not merged. Only rows with SubModuleName='Measure_Merge' are relevant."
+confidence: verified
+sql: |
+  LEFT JOIN keyvaluemapping KVM
+    ON KVM.ADDITIONALKEY2 = SUBSTRING(F.MeasurementYear, 1, 4)
+    AND KVM.ADDITIONALKEY1 = F.KEYVALUEMEASUREID
+    AND KVM.KeyName = F.submeasurecode
+    AND KVM.SubModuleName = 'Measure_Merge'

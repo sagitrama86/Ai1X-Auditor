@@ -1,0 +1,194 @@
+# ============================================================
+# Table: factQualityReport_Filters
+# ============================================================
+
+table_name: factQualityReport_Filters
+schema: dbo
+classification: fact
+
+description: >
+  Companion filter table to factqualityreport. Contains attribution model
+  details, provider assignments, product/plan information, and subnetwork
+  data. Joined 1:1 with factqualityreport on (factssui, SubmissionId).
+  Separated from the main fact table for performance — these columns are
+  only needed when filtering or displaying attribution-related fields.
+
+row_count_approx: 4523891
+
+grain:
+  description: "Exact same grain as factqualityreport — 1:1 relationship"
+  columns: [factssui, SubmissionId]
+
+joins_with:
+  - table: factqualityreport
+    join_type: INNER
+    on: [factssui, SubmissionId]
+    relationship: "1:1"
+    purpose: "Primary companion table"
+
+problems_and_suggestions:
+  - problem: "assignedprovidername stores '-1' as a sentinel value instead of NULL"
+    impact: "Requires CASE logic to handle: WHEN assignedprovidername = '-1' THEN 'Unknown'"
+    suggestion: "Use NULL instead of '-1' for missing provider names"
+
+  - problem: "Attribution model logic is embedded in queries, not in the data"
+    impact: "Every query must check attributionmodelcode to decide whether to show provider/subnetwork or 'Unknown'"
+    suggestion: "Pre-compute the resolved values in ETL"
+
+columns:
+  factssui:
+    data_type: BIGINT
+    nullable: false
+    pk: true
+    fk: "factqualityreport.factssui"
+    constraints: "Part of composite PK"
+    index: "Clustered index on (factssui, SubmissionId)"
+    grain: "Join key to factqualityreport"
+    record_level_info: "1:1 with factqualityreport"
+    same_in_other_tables:
+      - table: factqualityreport
+        column: factssui
+
+  SubmissionId:
+    data_type: INT
+    nullable: false
+    pk: true
+    fk: "factqualityreport.SubmissionId"
+    constraints: "Part of composite PK"
+    index: "Clustered index on (factssui, SubmissionId)"
+    grain: "Join key to factqualityreport"
+    record_level_info: "1:1 with factqualityreport"
+    same_in_other_tables:
+      - table: factqualityreport
+        column: SubmissionId
+
+  productname:
+    data_type: VARCHAR(200)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Product/plan name"
+    record_level_info: "Used as a slicer in Power BI. Represents the specific product within a LOB."
+    same_in_other_tables: null
+
+  healthplanname:
+    data_type: VARCHAR(200)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Health plan name"
+    record_level_info: "Used as a slicer. Represents the health plan the member is enrolled in."
+    same_in_other_tables: null
+
+  attributionmodelcode:
+    data_type: VARCHAR(20)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Attribution model used for provider assignment"
+    record_level_info: >
+      Determines how members are attributed to providers.
+      When attributionmodelcode matches the user-selected Attribute Type slicer,
+      show the actual provider/subnetwork. Otherwise show 'Unknown'.
+      This is a critical filter for provider-level reports.
+    same_in_other_tables: null
+
+  assignedprovidergroupname:
+    data_type: VARCHAR(200)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Provider group name from attribution"
+    record_level_info: >
+      Only meaningful when attributionmodelcode matches the selected Attribute Type.
+      Otherwise should display as 'Unknown'.
+    same_in_other_tables: null
+
+  assignedprovidername:
+    data_type: VARCHAR(200)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: "Sentinel value: '-1' means unknown"
+    index: null
+    grain: "Assigned provider full name"
+    record_level_info: >
+      WARNING: Uses '-1' as sentinel for unknown instead of NULL.
+      Must handle: WHEN assignedprovidername = '-1' THEN 'Unknown'
+    same_in_other_tables: null
+
+  assignedproviderfname:
+    data_type: VARCHAR(100)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: "Sentinel value: '-1' means unknown"
+    index: null
+    grain: "Provider first name"
+    record_level_info: "Same sentinel issue as assignedprovidername"
+    same_in_other_tables: null
+
+  assignedproviderlname:
+    data_type: VARCHAR(100)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Provider last name"
+    record_level_info: "Used with assignedproviderfname to construct full name: 'lname, fname'"
+    same_in_other_tables: null
+
+  Subnetwork:
+    data_type: VARCHAR(100)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Subnetwork/entity name"
+    record_level_info: >
+      Only meaningful when attributionmodelcode matches selected Attribute Type.
+      Otherwise should display as 'Unknown'. Used as the 'Entity' column in reports.
+    same_in_other_tables: null
+
+  businessgroupcode:
+    data_type: VARCHAR(20)
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Business group code"
+    record_level_info: "Used as a slicer in Power BI reports."
+    same_in_other_tables: null
+
+  assignedprovidergroupid:
+    data_type: INT
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Provider group ID from attribution"
+    record_level_info: "Numeric ID for the assigned provider group."
+    same_in_other_tables: null
+
+  assignedproviderid:
+    data_type: INT
+    nullable: true
+    pk: false
+    fk: null
+    constraints: null
+    index: null
+    grain: "Provider ID from attribution"
+    record_level_info: "Numeric ID for the assigned provider."
+    same_in_other_tables: null

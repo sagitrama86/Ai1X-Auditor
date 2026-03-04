@@ -1,0 +1,125 @@
+report_id: source_system_idss_hierarchy
+report_name: Source System IDSS Hierarchy
+report_type: IDSSHierarchy
+base_table: factqualityreport
+status: ready
+description: 'Auto-generated report: Source System IDSS Hierarchy'
+fixed_filters:
+- isRaw = 0
+- isUtilization = 0
+- RN = 1
+deduplication:
+  method: ROW_NUMBER
+  partition_by:
+  - factssui
+  - SubmissionId
+  filter: RN = 1
+composite_key:
+- Measures
+- Submission
+- Source Feed Type
+- Source System
+duplicate_rows_per_composite_key: false
+duplicate_rows_per_all_columns: false
+sort_by:
+- column: Measures
+  direction: ASC
+- column: Submission
+  direction: ASC
+fields:
+- display_name: Measures
+  template_ref: Measures
+  data_type: String
+  allow_null: false
+- display_name: Submission
+  template_ref: Submission
+  data_type: String
+  allow_null: false
+- display_name: Compliance %
+  template_ref: Compliance %
+  data_type: Percentage
+  allow_null: false
+- display_name: MRSS
+  template_ref: MRSS
+  data_type: String
+  allow_null: false
+- display_name: Denominator
+  template_ref: Denominator
+  data_type: Integer
+  allow_null: true
+- display_name: Compliant
+  template_ref: Compliant
+  data_type: Integer
+  allow_null: true
+- display_name: Optional Exclusion
+  template_ref: Optional Exclusion
+  data_type: Integer
+  allow_null: true
+- display_name: Required Exclusion
+  template_ref: Required Exclusion
+  data_type: Integer
+  allow_null: true
+- display_name: VDE
+  template_ref: VDE
+  data_type: Integer
+  allow_null: true
+- display_name: EDE
+  template_ref: EDE
+  data_type: Integer
+  allow_null: true
+- display_name: ECC
+  template_ref: ECC
+  data_type: Integer
+  allow_null: true
+- display_name: ERF
+  template_ref: ERF
+  data_type: Integer
+  allow_null: true
+- display_name: Source Feed Type
+  template_ref: Source Feed Type
+  data_type: String
+  allow_null: false
+- display_name: Source System
+  template_ref: Source System
+  data_type: String
+  allow_null: false
+slicers:
+- name: Organization Name
+  required: true
+- name: Measurement Year
+  required: true
+- name: Line of Business
+  required: false
+- name: Business Group
+  required: false
+- name: Submission
+  required: false
+- name: Products
+  required: false
+- name: Health Plans
+  required: false
+- name: NCQA Domain
+  required: false
+- name: Health Category
+  required: false
+- name: Measures
+  required: false
+- name: Enrollment Status
+  required: false
+cross_field_validations:
+- rule: Compliant <= Denominator
+  severity: error
+- rule: Non Compliant <= Denominator
+  severity: error
+- rule: Compliant + Non Compliant = Denominator
+  severity: error
+- rule: Required Exclusion <= Denominator
+  severity: warning
+- rule: Optional Exclusion <= Denominator
+  severity: warning
+- rule: Compliance % between 0 and 100
+  severity: error
+- rule: Compliance % = NULL when Denominator = 0
+  severity: error
+- rule: VDE + EDE + ECC + ERF <= total member count
+  severity: warning

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Skills Library</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.main{margin-left:260px;padding:32px 40px}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:13px;color:#8b949e;margin-bottom:20px}
+.breadcrumb a{color:#58a6ff;text-decoration:none}
+.page-header{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}
+.page-header-left h1{font-size:28px;font-weight:600;margin-bottom:8px}
+.page-header-left p{color:#8b949e;font-size:15px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:#1f6feb;color:#fff}
+.btn-outline{background:transparent;color:#8b949e;border:1px solid #30363d}
+.inp{background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e1e4e8;font-size:13px;padding:8px 12px}
+
+/* Stats bar */
+.stats-bar{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-bottom:28px}
+.stat-card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:all .15s}
+.stat-card:hover{border-color:#484f58}
+.stat-card.active{border-color:#58a6ff;background:#1f6feb11}
+.stat-val{font-size:22px;font-weight:700}
+.stat-label{font-size:11px;color:#8b949e;margin-top:4px}
+
+/* Search */
+.search-bar{display:flex;gap:12px;margin-bottom:24px}
+.search-input{flex:1;padding:10px 14px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e1e4e8;font-size:14px}
+.search-input:focus{outline:none;border-color:#58a6ff}
+
+/* Content layout */
+.content-layout{display:grid;grid-template-columns:220px 1fr;gap:24px}
+
+/* Folder tree */
+.tree{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:12px;height:fit-content;position:sticky;top:32px}
+.tree-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;font-size:13px;color:#c9d1d9;cursor:pointer;transition:all .15s}
+.tree-item:hover{background:#1f2937}
+.tree-item.active{background:#1f6feb22;color:#58a6ff}
+.tree-item .count{margin-left:auto;font-size:11px;color:#484f58;background:#0d1117;padding:1px 6px;border-radius:8px}
+.tree-sub{padding-left:20px}
+
+/* Skill cards */
+.skill-list{display:flex;flex-direction:column;gap:8px}
+.skill-card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px 20px;cursor:pointer;transition:all .15s}
+.skill-card:hover{border-color:#484f58;background:#1f2937}
+.skill-card.selected{border-color:#58a6ff;background:#1f6feb11}
+.skill-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.skill-name{font-size:14px;font-weight:600}
+.skill-type{font-size:11px;padding:2px 8px;border-radius:8px;font-weight:600}
+.skill-type.schema{background:#1f6feb22;color:#58a6ff}
+.skill-type.join{background:#3fb95022;color:#3fb950}
+.skill-type.slicer{background:#a371f722;color:#a371f7}
+.skill-type.domain{background:#d2992222;color:#d29922}
+.skill-type.report{background:#f9826c22;color:#f9826c}
+.skill-type.validation{background:#f8514922;color:#f85149}
+.skill-type.metadata{background:#8b949e22;color:#8b949e}
+.skill-desc{font-size:12px;color:#8b949e;line-height:1.5;margin-bottom:8px}
+.skill-meta{display:flex;gap:12px;font-size:11px;color:#484f58}
+.skill-meta span{display:flex;align-items:center;gap:4px}
+.skill-tags{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+.skill-tag{font-size:10px;padding:2px 6px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#8b949e}
+
+/* Detail panel */
+.detail-panel{display:none;background:#161b22;border:1px solid #30363d;border-radius:12px;margin-top:16px;overflow:hidden}
+.detail-panel.show{display:block}
+.detail-header{padding:16px 20px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between}
+.detail-header h3{font-size:16px;font-weight:600}
+.detail-body{padding:0}
+.ms{padding:14px 20px;border-bottom:1px solid #21262d}.ms:last-child{border-bottom:none}
+.ms-title{font-size:11px;text-transform:uppercase;color:#8b949e;margin-bottom:10px;font-weight:600;letter-spacing:.5px}
+.mr{display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0}
+.ml{font-size:12px;color:#8b949e;min-width:120px}
+.mv{font-size:12px;color:#c9d1d9;text-align:right;flex:1}
+.mv code{background:#0d1117;padding:2px 6px;border-radius:4px;font-size:11px}
+.yaml-block{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;font-family:'SF Mono',monospace;font-size:11px;line-height:1.7;color:#c9d1d9;white-space:pre-wrap;max-height:300px;overflow:auto;margin-top:6px}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;margin:1px}
+.tag.b{background:#1f6feb22;color:#58a6ff}
+.tag.g{background:#3fb95022;color:#3fb950}
+.tag.o{background:#d2992222;color:#d29922}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item"onclick="location='16-schema.html'">🗄️ Schema</div>
+      <div class="nav-item active">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
+      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW — 23 tables</div></div>
+</div>
+<div class="main">
+  <div class="breadcrumb"><a href="05-home-loaded.html">Home</a> / <span>Skills Library</span></div>
+  <div class="page-header">
+    <div class="page-header-left"><h1>Skills Library</h1><p>All knowledge the AI has learned — schemas, joins, domain rules, reports, and validations.</p></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="location='06-ai-chat.html'">💬 Teach New Skill</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="stats-bar"></div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <input class="search-input" placeholder="Search skills by name, table, column, or description..." id="search-input" oninput="filterSkills()">
+  </div>
+
+  <div class="content-layout">
+    <!-- Folder tree -->
+    <div class="tree" id="tree"></div>
+
+    <!-- Skills list -->
+    <div>
+      <div class="skill-list" id="skill-list"></div>
+      <div class="detail-panel" id="detail-panel">
+        <div class="detail-header"><h3 id="dp-title">Skill Details</h3><button onclick="document.getElementById('detail-panel').classList.remove('show')" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:16px">✕</button></div>
+        <div class="detail-body" id="dp-body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const SKILLS=[
+  // Schema
+  {id:'s1',cat:'schema',name:'factqualityreport',desc:'Main fact table — 62 columns, 4.5M rows. Contains quality report measures, performance data, and clinical status.',via:'auto_discovered',date:'Mar 1',tags:['fact','quality','4.5M rows'],yaml:'skill_type: schema\ntable: factqualityreport\ncolumns: 62\nrow_count: 4523891\nclassification: fact\nprimary_key: [factssui, SubmissionId]'},
+  {id:'s2',cat:'schema',name:'factQualityReport_Filters',desc:'Filter companion to factqualityreport — attribution model, provider assignments, product/plan details.',via:'auto_discovered',date:'Mar 1',tags:['fact','filters','attribution'],yaml:'skill_type: schema\ntable: factQualityReport_Filters\ncolumns: 38\nrow_count: 4523891\nclassification: fact'},
+  {id:'s3',cat:'schema',name:'measuredetails',desc:'Dimension table for HEDIS measures — codes, names, types, domains, categories, flags.',via:'auto_discovered',date:'Mar 1',tags:['dimension','measures','HEDIS'],yaml:'skill_type: schema\ntable: measuredetails\ncolumns: 24\nrow_count: 1247\nclassification: dimension'},
+  {id:'s4',cat:'schema',name:'dimorganization',desc:'Organization/client dimension — org ID, name, settings.',via:'auto_discovered',date:'Mar 1',tags:['dimension','organization'],yaml:'skill_type: schema\ntable: dimorganization\ncolumns: 12\nrow_count: 156'},
+  {id:'s5',cat:'schema',name:'dimprovidergroup',desc:'Provider group dimension — group ID, name, domain.',via:'auto_discovered',date:'Mar 1',tags:['dimension','provider'],yaml:'skill_type: schema\ntable: dimprovidergroup\ncolumns: 18\nrow_count: 3421'},
+  {id:'s6',cat:'schema',name:'dimprovider_RDM',desc:'Provider RDM dimension — provider details, NPI, specialty.',via:'auto_discovered',date:'Mar 1',tags:['dimension','provider','RDM'],yaml:'skill_type: schema\ntable: dimprovider_RDM\ncolumns: 22\nrow_count: 45892'},
+  {id:'s7',cat:'schema',name:'dimproductcategory',desc:'Product category dimension — LOB mapping.',via:'auto_discovered',date:'Mar 1',tags:['dimension','product','LOB'],yaml:'skill_type: schema\ntable: dimproductcategory\ncolumns: 8\nrow_count: 12'},
+  {id:'s8',cat:'schema',name:'keyvaluemapping',desc:'Lookup table for measure merging and key-value translations.',via:'auto_discovered',date:'Mar 1',tags:['lookup','mapping'],yaml:'skill_type: schema\ntable: keyvaluemapping\ncolumns: 9\nrow_count: 892'},
+  {id:'s9',cat:'schema',name:'qualitycutpoints',desc:'NCQA percentile cutpoints per org/product/measure/year.',via:'auto_discovered',date:'Mar 1',tags:['lookup','cutpoints','NCQA'],yaml:'skill_type: schema\ntable: qualitycutpoints\ncolumns: 11\nrow_count: 2340'},
+
+  // Joins
+  {id:'j1',cat:'joins',name:'factqualityreport ↔ factQualityReport_Filters',desc:'Composite key join on factssui + SubmissionId. 1:1 ratio verified.',via:'auto_discovered',date:'Mar 1',tags:['fact-to-fact','composite key'],yaml:'skill_type: join\nleft: factqualityreport\nright: factQualityReport_Filters\njoin_type: INNER\non:\n  - factssui = factssui\n  - SubmissionId = SubmissionId\nvalidation:\n  match_rate: 1.0\n  ratio: "1:1"'},
+  {id:'j2',cat:'joins',name:'factqualityreport ↔ dimorganization',desc:'Simple FK join on organizationid. Many:1.',via:'auto_discovered',date:'Mar 1',tags:['fact-to-dim','FK'],yaml:'skill_type: join\nleft: factqualityreport\nright: dimorganization\non: organizationid = organizationid\njoin_type: INNER'},
+  {id:'j3',cat:'joins',name:'factqualityreport ↔ measuredetails',desc:'Conditional OR join — uses keyvaluemeasureid when available, falls back to clinicalmeasureid.',via:'conversation',date:'Mar 1',tags:['conditional','OR join','measures'],yaml:'skill_type: join\nleft: factqualityreport\nright: measuredetails\njoin_type: INNER\non_expression: |\n  (F.keyvaluemeasureid IS NOT NULL\n   AND F.keyvaluemeasureid = M.measureid)\n  OR\n  (F.keyvaluemeasureid IS NULL\n   AND F.clinicalmeasureid = M.clinicalmeasureid)\nvalidation:\n  match_rate: 1.0\n  note: "Conditional join — taught via conversation"'},
+  {id:'j4',cat:'joins',name:'factqualityreport ↔ dimprovider_RDM',desc:'Concatenation-based join — KeyToProvider = CONCAT(domainid, "-", sourcesystemuniqueidentifier).',via:'conversation',date:'Mar 1',tags:['concatenation','composite','provider'],yaml:'skill_type: join\nleft: factqualityreport\nright: dimprovider_RDM\njoin_type: INNER\non_expression: |\n  F.KeyToProvider = CONCAT(\n    PR.domainid, "-",\n    PR.sourcesystemuniqueidentifier\n  )\nevidence:\n  sample_values:\n    KeyToProvider: ["1042-PAT00123"]\n    domainid: [1042]\n    ssui: ["PAT00123"]\n  match_rate: 1.0'},
+  {id:'j5',cat:'joins',name:'factqualityreport ↔ dimprovidergroup',desc:'Composite join on providerGroupID + domainid.',via:'auto_discovered',date:'Mar 1',tags:['fact-to-dim','composite'],yaml:'skill_type: join\non:\n  - providerGroupID = providerGroupID\n  - domainid = domainid'},
+  {id:'j6',cat:'joins',name:'factqualityreport ↔ dimproductcategory',desc:'Simple FK join on ProductCategoryID.',via:'auto_discovered',date:'Mar 1',tags:['fact-to-dim','FK'],yaml:'skill_type: join\non: ProductCategoryID = ProductCategoryID'},
+  {id:'j7',cat:'joins',name:'factqualityreport ↔ keyvaluemapping',desc:'LEFT JOIN for measure merging on year + measureid + submeasurecode.',via:'conversation',date:'Mar 1',tags:['LEFT JOIN','measure merge'],yaml:'skill_type: join\njoin_type: LEFT\non:\n  - KVM.ADDITIONALKEY2 = SUBSTRING(MeasurementYear,1,4)\n  - KVM.ADDITIONALKEY1 = KEYVALUEMEASUREID\n  - KVM.KeyName = submeasurecode\n  - SubModuleName = "Measure_Merge"'},
+  {id:'j8',cat:'joins',name:'factqualityreport ↔ qualitycutpoints',desc:'LEFT JOIN for NCQA percentile cutpoints on org + product + domain + year + measure.',via:'auto_discovered',date:'Mar 1',tags:['LEFT JOIN','cutpoints','NCQA'],yaml:'skill_type: join\njoin_type: LEFT\non:\n  - organizationId\n  - ProductCategoryId\n  - domainid\n  - MeasurementYear\n  - SubMeasureCode'},
+
+  // Domain
+  {id:'d1',cat:'domain',name:'HEDIS Clinical Status Codes',desc:'clinicalonlystatus: 16=DVDE, 17=DE, 23=ECC, 24=ERF. Determines which SSUI column to count.',via:'conversation',date:'Mar 1',tags:['HEDIS','clinical','global'],yaml:'skill_type: domain_rule\nscope: global\nrule:\n  source_column: clinicalonlystatus\n  mappings:\n    16: {label: DVDE, suffix: DVDE}\n    17: {label: DE, suffix: DE}\n    23: {label: ECC, suffix: ECC}\n    24: {label: ERF, suffix: ERF}\n  applies_to: [patient, visit, event]'},
+  {id:'d2',cat:'domain',name:'HEDIS Percentile Calculation',desc:'NCQA PCTL ranking using 4 cutpoints. 4-way branch on NCQAInvertedFlag × InverseFlag.',via:'conversation',date:'Mar 1',tags:['HEDIS','percentile','NCQA','cutpoints'],yaml:'skill_type: business_logic\nname: PCTL\nbranching:\n  numerator:\n    NCQAInvertedFlag=Y: NonCompliant\n    otherwise: Compliant\n  direction:\n    InverseFlag=N: normal\n    InverseFlag=Y: inverted\nbuckets:\n  - "<25th"\n  - "25th"\n  - "50th"\n  - "75th"\n  - "90th"'},
+  {id:'d3',cat:'domain',name:'HEDIS Measure Types',desc:'measuretype determines count entity: Visit→visitSSUI, Event→eventSSUI, Patient-Process→patientSSUI.',via:'conversation',date:'Mar 1',tags:['HEDIS','measure type'],yaml:'skill_type: domain_rule\nscope: global\nmeasure_types:\n  Visit: count visitSSUI\n  Event: count eventSSUI\n  Patient-Process: count patientSSUI'},
+
+  // Slicers
+  {id:'sl1',cat:'slicers',name:'Organization Name slicer',desc:'Maps to A.organizationname. Required. Uses COALESCE optional pattern.',via:'conversation',date:'Mar 1',tags:['measurelist','required'],yaml:'slicer_name: Organization Name\ncolumn: A.organizationname\nparameter: ":00OrganizationName"\nrequired: true'},
+  {id:'sl2',cat:'slicers',name:'Measurement Year slicer',desc:'Maps to A.MeasurementYear. Required.',via:'conversation',date:'Mar 1',tags:['measurelist','required'],yaml:'slicer_name: Measurement Year\ncolumn: A.MeasurementYear\nrequired: true'},
+  {id:'sl3',cat:'slicers',name:'Line of Business slicer',desc:'Maps to D.productcategoryname via dimproductcategory.',via:'conversation',date:'Mar 1',tags:['measurelist'],yaml:'slicer_name: Line of Business\ncolumn: D.productcategoryname\nrequired: false\ndefault: All'},
+
+  // Reports
+  {id:'r1',cat:'reports',name:'Quality Dashboard — MeasureList',desc:'16 fields, 11 slicers, 8 joins, 2 domain rules. Fully configured.',via:'conversation',date:'Mar 1',tags:['quality','measurelist','ready'],yaml:'report_name: Quality Dashboard - MeasureList\nbase_table: factqualityreport\nfields: 16\nslicers: 11\nuses_joins: 8\nuses_domain_rules: 2\nstatus: ready'},
+  {id:'r2',cat:'reports',name:'Quality Dashboard — Provider Detail',desc:'14 fields, 8 slicers. Draft — 5 fields missing.',via:'conversation',date:'Mar 1',tags:['quality','provider','draft'],yaml:'report_name: Quality Dashboard - Provider Detail\nstatus: draft\nfields: 9/14\nslicers: 8'},
+
+  // Validations
+  {id:'v1',cat:'validations',name:'Compliant ≤ Denominator',desc:'Cross-field: Compliant must not exceed Denominator. Severity: error.',via:'conversation',date:'Mar 1',tags:['cross-field','error'],yaml:'type: cross_field\nfield: Compliant\noperator: "<="\ncompare: Denominator\nseverity: error'},
+  {id:'v2',cat:'validations',name:'MeasureList vs VBC — Eligible Population',desc:'Cross-report: Compliant in MeasureList = Eligible Population in VBC.',via:'conversation',date:'Mar 1',tags:['cross-report','VBC'],yaml:'type: cross_report\nsource:\n  report: MeasureList\n  column: Compliant\ntarget:\n  report: VBC\n  column: Eligible Population\nseverity: error'},
+  {id:'v3',cat:'validations',name:'MeasureList vs VBC — Numerator by Measure',desc:'Cross-report: SUM(Compliant) per Measure in MeasureList = Numerator in VBC.',via:'conversation',date:'Mar 1',tags:['cross-report','VBC','aggregate'],yaml:'type: cross_report\nsource:\n  report: MeasureList\n  expression: "SUM(Compliant)"\n  group_by: [Measure]\ntarget:\n  report: VBC\n  column: Numerator\njoin_on: Measure\nseverity: error'},
+
+  // Metadata definitions
+  {id:'m1',cat:'metadata',name:'allow_null',desc:'Boolean checkbox — whether a field can have NULL values in output.',via:'conversation',date:'Mar 1',tags:['boolean','field-level'],yaml:'type: boolean\ninput_control: checkbox\ndefault: true\nscope: field'},
+  {id:'m2',cat:'metadata',name:'validation_rule',desc:'Compound metadata — check type (range/enum/regex/length) + severity + rule params.',via:'conversation',date:'Mar 1',tags:['compound','validation'],yaml:'type: object\nproperties:\n  check_type: enum [none,range,enum,regex,length]\n  severity: enum [error,warning]\n  rule: varies by check_type'}
+];
+
+const CATS=[
+  {key:'all',icon:'📦',label:'All Skills'},
+  {key:'schema',icon:'🗄️',label:'Schema'},
+  {key:'joins',icon:'🔗',label:'Joins'},
+  {key:'domain',icon:'📐',label:'Domain Rules'},
+  {key:'slicers',icon:'🎛️',label:'Slicers'},
+  {key:'reports',icon:'📄',label:'Reports'},
+  {key:'validations',icon:'✅',label:'Validations'},
+  {key:'metadata',icon:'🏷️',label:'Metadata Defs'}
+];
+
+let activeCat='all';
+
+function render(){
+  // Stats
+  const sb=document.getElementById('stats-bar');
+  sb.innerHTML=CATS.map(c=>{
+    const cnt=c.key==='all'?SKILLS.length:SKILLS.filter(s=>s.cat===c.key).length;
+    return `<div class="stat-card ${activeCat===c.key?'active':''}" onclick="activeCat='${c.key}';render()"><div class="stat-val" style="color:${activeCat===c.key?'#58a6ff':'#c9d1d9'}">${cnt}</div><div class="stat-label">${c.label}</div></div>`;
+  }).join('');
+
+  // Tree
+  const tree=document.getElementById('tree');
+  tree.innerHTML=CATS.map(c=>{
+    const cnt=c.key==='all'?SKILLS.length:SKILLS.filter(s=>s.cat===c.key).length;
+    return `<div class="tree-item ${activeCat===c.key?'active':''}" onclick="activeCat='${c.key}';render()">${c.icon} ${c.label}<span class="count">${cnt}</span></div>`;
+  }).join('');
+
+  filterSkills();
+}
+
+function filterSkills(){
+  const q=(document.getElementById('search-input').value||'').toLowerCase();
+  const list=document.getElementById('skill-list');
+  const filtered=SKILLS.filter(s=>{
+    if(activeCat!=='all'&&s.cat!==activeCat)return false;
+    if(q&&!s.name.toLowerCase().includes(q)&&!s.desc.toLowerCase().includes(q)&&!s.tags.some(t=>t.toLowerCase().includes(q)))return false;
+    return true;
+  });
+
+  const typeClass={schema:'schema',joins:'join',domain:'domain',slicers:'slicer',reports:'report',validations:'validation',metadata:'metadata'};
+
+  list.innerHTML=filtered.length?filtered.map(s=>`
+    <div class="skill-card" onclick="showDetail('${s.id}')">
+      <div class="skill-header">
+        <span class="skill-name">${s.name}</span>
+        <span class="skill-type ${typeClass[s.cat]}">${s.cat}</span>
+      </div>
+      <div class="skill-desc">${s.desc}</div>
+      <div class="skill-meta">
+        <span>${s.via==='auto_discovered'?'🤖 Auto-discovered':'💬 Via conversation'}</span>
+        <span>📅 ${s.date}</span>
+      </div>
+      <div class="skill-tags">${s.tags.map(t=>'<span class="skill-tag">'+t+'</span>').join('')}</div>
+    </div>
+  `).join(''):'<div style="text-align:center;padding:40px;color:#484f58">No skills match your search.</div>';
+}
+
+function showDetail(id){
+  const s=SKILLS.find(x=>x.id===id);if(!s)return;
+  const dp=document.getElementById('detail-panel');
+  dp.classList.add('show');
+  document.getElementById('dp-title').textContent=s.name;
+  const typeClass={schema:'schema',joins:'join',domain:'domain',slicers:'slicer',reports:'report',validations:'validation',metadata:'metadata'};
+  document.getElementById('dp-body').innerHTML=`
+    <div class="ms"><div class="ms-title">Properties</div>
+      <div class="mr"><span class="ml">Type</span><span class="mv"><span class="skill-type ${typeClass[s.cat]}" style="font-size:12px">${s.cat}</span></span></div>
+      <div class="mr"><span class="ml">Created Via</span><span class="mv">${s.via==='auto_discovered'?'🤖 Auto-discovered':'💬 Conversation'}</span></div>
+      <div class="mr"><span class="ml">Created</span><span class="mv">${s.date}, 2026</span></div>
+      <div class="mr"><span class="ml">Tags</span><span class="mv">${s.tags.map(t=>'<span class="tag b">'+t+'</span>').join(' ')}</span></div>
+    </div>
+    <div class="ms"><div class="ms-title">Description</div>
+      <div style="font-size:13px;color:#c9d1d9;line-height:1.6">${s.desc}</div>
+    </div>
+    <div class="ms"><div class="ms-title">YAML Definition</div>
+      <div class="yaml-block">${s.yaml}</div>
+    </div>
+    <div class="ms" style="display:flex;gap:8px;padding:14px 20px">
+      <button class="btn btn-outline" style="font-size:12px" onclick="location='06-ai-chat.html'">💬 Edit in Chat</button>
+      <button class="btn btn-outline" style="font-size:12px;color:#f85149;border-color:#f8514944">🗑️ Delete</button>
+    </div>`;
+  dp.scrollIntoView({behavior:'smooth'});
+}
+
+render();
+</script>
+</body>
+</html>

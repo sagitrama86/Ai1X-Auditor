@@ -1,0 +1,244 @@
+# ============================================================
+# Report: Quality Dashboard — MeasureList
+# Status: Ready
+# ============================================================
+report_id: measurelist
+report_name: "Quality Dashboard — MeasureList"
+report_type: MeasureList
+base_table: factqualityreport
+status: ready
+
+description: >
+  Measure-level compliance report. One row per measure per submission.
+  Shows compliance %, NCQA percentile rankings, gap-to-target, and
+  clinical status counts (VDE, EDE, ECC, ERF).
+
+uses_joins:
+  - join_fqr_filters
+  - join_fqr_dimorg
+  - join_fqr_measuredetails
+  - join_fqr_dimproductcategory
+  - join_fqr_dimprovidergroup
+  - join_fqr_dimprovider_rdm
+  - join_fqr_qualitycutpoints
+  - join_fqr_keyvaluemapping
+
+fixed_filters:
+  - "F.isRaw = 0"
+  - "F.isUtilization = 0"
+  - "RN = 1"
+
+deduplication:
+  method: ROW_NUMBER
+  partition_by: [F.factSSUI, F.SubmissionID]
+  order_by: "F.factSSUI, F.SubmissionID ASC"
+  filter: "RN = 1"
+
+aggregation_levels:
+  - level: 1
+    name: source_data
+    description: "Granular join + row-level calculations"
+    group_by:
+      - A.Subnetwork
+      - Measures  # computed CONCAT expression
+      - M.SubMeasureCode
+      - M.Measurecode
+      - A.assignedprovidergroupname
+      - A.assignedprovidername
+      - A.NCQA_Submission_ID_Name
+      - QC.Cutpoint3
+      - QC.Cutpoint5
+      - QC.Cutpoint7
+      - QC.Cutpoint8
+      - M.NCQAInvertedFlag
+      - M.InverseFlag
+      - M.measuretype
+      - MRSS  # COALESCE expression
+      - A.attributionmodelcode
+
+  - level: 2
+    name: calculation_cte
+    description: "Aggregation + PCTL computation"
+    group_by:
+      - Measures
+      - SubMeasureCode
+      - Submission
+      - Cutpoint3
+      - Cutpoint5
+      - Cutpoint7
+      - Cutpoint8
+      - MRSS
+      - NCQAInvertedFlag
+      - InverseFlag
+
+composite_key: [Measures, Submission]
+duplicate_rows_per_composite_key: false
+duplicate_rows_per_all_columns: false
+
+sort_by:
+  - {column: Measures, direction: ASC, priority: 1}
+  - {column: Submission, direction: ASC, priority: 2}
+
+fields:
+  - display_name: Measures
+    template_ref: Measures
+    data_type: String
+    allow_null: false
+    check: regex
+    check_rule: "^[A-Z]{2,5}-.*"
+    check_severity: warning
+
+  - display_name: Submission
+    template_ref: Submission
+    data_type: String
+    allow_null: false
+    check: length
+    check_rule: "1|200"
+    check_severity: error
+
+  - display_name: "Compliance (%)"
+    template_ref: "Compliance %"
+    data_type: Percentage
+    allow_null: false
+    tolerance: "0.01"
+    check: range
+    check_rule: "0|100"
+    check_severity: error
+
+  - display_name: MRSS
+    template_ref: MRSS
+    data_type: String
+    allow_null: false
+    check: length
+    check_rule: "1|20"
+    check_severity: warning
+
+  - display_name: Denominator
+    template_ref: Denominator
+    data_type: Integer
+    allow_null: false
+    check: range
+    check_rule: "0|999999999"
+    check_severity: error
+
+  - display_name: Compliant
+    template_ref: Compliant
+    data_type: Integer
+    allow_null: false
+    check: range
+    check_rule: "0|999999999"
+    check_severity: error
+
+  - display_name: "Non Compliant"
+    template_ref: "Non Compliant"
+    data_type: Integer
+    allow_null: false
+    check: range
+    check_rule: "0|999999999"
+    check_severity: error
+
+  - display_name: "Required Exclusion"
+    template_ref: "Required Exclusion"
+    data_type: Integer
+    allow_null: false
+    check: range
+    check_rule: "0|999999999"
+    check_severity: error
+
+  - display_name: VDE
+    template_ref: VDE
+    data_type: Integer
+    allow_null: true
+    check: range
+    check_rule: "0|999999"
+    check_severity: warning
+
+  - display_name: EDE
+    template_ref: EDE
+    data_type: Integer
+    allow_null: true
+    check: range
+    check_rule: "0|999999"
+    check_severity: warning
+
+  - display_name: ECC
+    template_ref: ECC
+    data_type: Integer
+    allow_null: true
+    check: range
+    check_rule: "0|999999"
+    check_severity: warning
+
+  - display_name: ERF
+    template_ref: ERF
+    data_type: Integer
+    allow_null: true
+    check: range
+    check_rule: "0|999999"
+    check_severity: warning
+
+  - display_name: "Current PCTL"
+    template_ref: "Current PCTL"
+    data_type: String
+    allow_null: true
+    check: enum
+    check_rule: "<25th,25th,50th,75th,90th"
+    check_severity: error
+
+  - display_name: "To reach (25th PCTL)"
+    template_ref: "To reach (25th PCTL)"
+    data_type: Integer
+    allow_null: true
+    check: range
+    check_rule: "0|999999"
+    check_severity: warning
+
+  - display_name: "To reach (50th PCTL)"
+    template_ref: "To reach (50th PCTL)"
+    data_type: Integer
+    allow_null: true
+
+  - display_name: "To reach (75th PCTL)"
+    template_ref: "To reach (75th PCTL)"
+    data_type: Integer
+    allow_null: true
+
+  - display_name: "To reach (90th PCTL)"
+    template_ref: "To reach (90th PCTL)"
+    data_type: Integer
+    allow_null: true
+
+slicers:
+  - {name: Organization Name, required: true}
+  - {name: Measurement Year, required: true}
+  - {name: Line of Business, required: false}
+  - {name: Business Group, required: false}
+  - {name: Submission, required: false}
+  - {name: Products, required: false}
+  - {name: Health Plans, required: false}
+  - {name: NCQA Domain, required: false}
+  - {name: Health Category, required: false}
+  - {name: Measures, required: false}
+  - {name: Enrollment Status, required: false}
+
+cross_field_validations:
+  - {field: Compliant, op: "<=", compare: Denominator, severity: error}
+  - {field: "Non Compliant", op: "<=", compare: Denominator, severity: error}
+  - {field: Compliant, op: ">=", compare: "Required Exclusion", severity: warning}
+
+cross_report_validations:
+  - source_col: Compliant
+    source_agg: ""
+    target_report: VBC
+    target_col: Eligible Population
+    target_agg: ""
+    match_by: []
+    severity: error
+
+  - source_col: Compliant
+    source_agg: SUM
+    target_report: VBC
+    target_col: Numerator
+    target_agg: ""
+    match_by: [Measures]
+    severity: error

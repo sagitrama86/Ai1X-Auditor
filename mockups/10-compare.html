@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Compare</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.main{margin-left:260px;padding:32px 40px;max-width:1100px}
+.page-header{margin-bottom:28px}
+.page-header h1{font-size:28px;font-weight:600;margin-bottom:8px}
+.page-header p{color:#8b949e;font-size:15px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;margin-bottom:20px}
+.card-title{font-size:16px;font-weight:600;margin-bottom:16px}
+.inp{width:100%;padding:9px 12px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e1e4e8;font-size:13px;font-family:inherit}
+.inp:focus{outline:none;border-color:#58a6ff}
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:#c9d1d9}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.upload-zone{border:2px dashed #30363d;border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:all .15s}
+.upload-zone:hover{border-color:#58a6ff;background:#1f6feb08}
+.upload-zone.has-file{border-color:#3fb950;background:#3fb95008}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .15s;width:100%}
+.btn-primary{background:#1f6feb;color:#fff}
+.btn-primary:hover{background:#388bfd}
+.btn-primary:disabled{background:#30363d;cursor:wait}
+/* Results */
+.summary{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+.scard{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px;text-align:center}
+.scard-val{font-size:22px;font-weight:700}
+.scard-label{font-size:11px;color:#8b949e;margin-top:4px}
+.diff-table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden}
+.diff-table th{text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;background:#0d1117}
+.diff-table td{padding:10px 14px;border-bottom:1px solid #21262d;font-size:13px}
+.val-pbi{color:#58a6ff}.val-sql{color:#3fb950}.val-diff{color:#f85149;font-weight:600}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item" onclick="location='16-schema.html'">🗄️ Schema</div>
+      <div class="nav-item" onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
+      <div class="nav-item active">🔍 Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
+</div>
+<div class="main">
+  <div class="page-header"><h1>Compare Power BI vs SQL</h1><p>Upload two CSV files and see the differences.</p></div>
+
+  <!-- Config -->
+  <div id="config-section">
+    <div class="card">
+      <div class="card-title">📋 Report & Key</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Report</label><select class="inp" id="report-sel"></select></div>
+        <div class="form-group"><label class="form-label">Composite Key (comma-separated)</label><input class="inp" id="comp-key" value="Measures,Submission"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Tolerance (for decimals)</label><input class="inp" id="tolerance" type="number" value="0.01" step="0.01" style="width:120px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📁 Upload Data</div>
+      <div class="form-row">
+        <div>
+          <div class="form-label">Power BI Export (CSV)</div>
+          <div class="upload-zone" id="pbi-zone" onclick="document.getElementById('pbi-file').click()">
+            <div style="font-size:24px;margin-bottom:6px">📊</div>
+            <div style="font-size:13px;color:#8b949e" id="pbi-label">Drop or click to upload Power BI CSV</div>
+          </div>
+          <input type="file" id="pbi-file" accept=".csv" style="display:none" onchange="fileSelected('pbi',this)">
+        </div>
+        <div>
+          <div class="form-label">SQL Query Result (CSV)</div>
+          <div class="upload-zone" id="sql-zone" onclick="document.getElementById('sql-file').click()">
+            <div style="font-size:24px;margin-bottom:6px">🗄️</div>
+            <div style="font-size:13px;color:#8b949e" id="sql-label">Drop or click to upload SQL result CSV</div>
+          </div>
+          <input type="file" id="sql-file" accept=".csv" style="display:none" onchange="fileSelected('sql',this)">
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="run-btn" onclick="runCompare()" disabled>🔍 Run Comparison</button>
+  </div>
+
+  <!-- Results -->
+  <div id="results-section" class="hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 style="font-size:20px;font-weight:600">Comparison Results</h2>
+      <button style="padding:6px 14px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#8b949e;font-size:12px;cursor:pointer" onclick="document.getElementById('results-section').classList.add('hidden');document.getElementById('config-section').classList.remove('hidden')">← Back</button>
+    </div>
+    <div class="summary" id="summary"></div>
+    <h3 style="font-size:16px;font-weight:600;margin-bottom:12px" id="mismatch-title"></h3>
+    <table class="diff-table" id="diff-table"><thead><tr><th>Row Key</th><th>Field</th><th>Power BI</th><th>SQL</th><th>Diff</th></tr></thead><tbody id="diff-body"></tbody></table>
+  </div>
+</div>
+<script>
+const API='http://localhost:8000';
+let pbiCSV='',sqlCSV='';
+
+// Load reports
+fetch(API+'/api/reports').then(r=>r.json()).then(d=>{
+  const sel=document.getElementById('report-sel');
+  d.reports.forEach(r=>{sel.innerHTML+=`<option value="${r.report_id}">${r.report_name}</option>`;});
+});
+
+function fileSelected(type,input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    if(type==='pbi'){pbiCSV=e.target.result;document.getElementById('pbi-label').textContent='✅ '+file.name;document.getElementById('pbi-zone').classList.add('has-file');}
+    else{sqlCSV=e.target.result;document.getElementById('sql-label').textContent='✅ '+file.name;document.getElementById('sql-zone').classList.add('has-file');}
+    document.getElementById('run-btn').disabled=!(pbiCSV&&sqlCSV);
+  };
+  reader.readAsText(file);
+}
+
+async function runCompare(){
+  const btn=document.getElementById('run-btn');
+  btn.disabled=true;btn.textContent='⏳ Comparing...';
+  const key=document.getElementById('comp-key').value.split(',').map(s=>s.trim());
+  const tol=parseFloat(document.getElementById('tolerance').value)||0.01;
+  try{
+    const resp=await fetch(API+'/api/compare',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pbi_csv:pbiCSV,sql_csv:sqlCSV,composite_key:key,tolerance:tol})
+    });
+    const d=await resp.json();
+    showResults(d);
+  }catch(e){
+    alert('Error: '+e.message);
+  }
+  btn.disabled=false;btn.textContent='🔍 Run Comparison';
+}
+
+function showResults(d){
+  document.getElementById('config-section').classList.add('hidden');
+  document.getElementById('results-section').classList.remove('hidden');
+  const mc=d.match_rate>=99?'#3fb950':d.match_rate>=95?'#d29922':'#f85149';
+  document.getElementById('summary').innerHTML=`
+    <div class="scard"><div class="scard-val" style="color:#58a6ff">${d.pbi_rows}</div><div class="scard-label">Power BI Rows</div></div>
+    <div class="scard"><div class="scard-val" style="color:#58a6ff">${d.sql_rows}</div><div class="scard-label">SQL Rows</div></div>
+    <div class="scard"><div class="scard-val" style="color:#3fb950">${d.matched_rows}</div><div class="scard-label">Rows Matched</div></div>
+    <div class="scard"><div class="scard-val" style="color:#f85149">${d.mismatched_rows}</div><div class="scard-label">Rows Mismatch</div></div>
+    <div class="scard"><div class="scard-val" style="color:${mc}">${d.match_rate}%</div><div class="scard-label">Cell Match Rate</div></div>
+    <div class="scard"><div class="scard-val" style="color:#f85149">${d.cell_mismatches}</div><div class="scard-label">Cell Mismatches</div></div>`;
+  document.getElementById('mismatch-title').textContent=d.mismatches.length?`❌ Mismatches (${d.mismatches.length})`:'✅ No mismatches — data matches perfectly!';
+  document.getElementById('diff-body').innerHTML=d.mismatches.map(m=>`<tr>
+    <td style="font-family:monospace;font-size:11px;color:#8b949e">${m.row_key}</td>
+    <td style="font-weight:600">${m.field}</td>
+    <td class="val-pbi">${m.pbi_value}</td>
+    <td class="val-sql">${m.sql_value}</td>
+    <td class="val-diff">${m.diff}</td>
+  </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#3fb950;padding:20px">All cells match ✅</td></tr>';
+}
+</script>
+</body>
+</html>

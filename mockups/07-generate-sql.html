@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Generate SQL</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.main{margin-left:260px;padding:32px 40px}
+.page-header{margin-bottom:24px}
+.page-header h1{font-size:28px;font-weight:600;margin-bottom:8px}
+.page-header p{color:#8b949e;font-size:15px}
+.generate-layout{display:grid;grid-template-columns:340px 1fr;gap:24px}
+.config-panel{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;height:fit-content;position:sticky;top:32px}
+.config-title{font-size:16px;font-weight:600;margin-bottom:20px}
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:#c9d1d9}
+.inp{width:100%;padding:9px 12px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e1e4e8;font-size:13px;font-family:inherit}
+.inp:focus{outline:none;border-color:#58a6ff}
+.filter-section{border-top:1px solid #30363d;padding-top:16px;margin-top:16px}
+.filter-title{font-size:13px;font-weight:600;color:#8b949e;margin-bottom:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .15s;width:100%}
+.btn-primary{background:#1f6feb;color:#fff}
+.btn-primary:hover{background:#388bfd}
+.btn-primary:disabled{background:#30363d;cursor:wait}
+.sql-panel{background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden}
+.sql-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #30363d}
+.sql-header h3{font-size:15px;font-weight:600}
+.sql-meta{font-size:12px;color:#8b949e}
+.sql-actions{display:flex;gap:8px}
+.sql-action-btn{padding:6px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#8b949e;font-size:12px;cursor:pointer}
+.sql-action-btn:hover{color:#c9d1d9;border-color:#484f58}
+.sql-output{padding:20px;background:#0d1117;font-family:'SF Mono','Fira Code',monospace;font-size:12.5px;line-height:1.7;overflow-x:auto;max-height:75vh;overflow-y:auto;white-space:pre-wrap;color:#c9d1d9}
+.sql-empty{padding:60px 20px;text-align:center;color:#484f58;font-size:14px}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item" onclick="location='16-schema.html'">🗄️ Schema</div>
+      <div class="nav-item" onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item active">⌨️ SQL Output</div>
+      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+  </div>
+  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
+</div>
+<div class="main">
+  <div class="page-header"><h1>Generate Validation SQL</h1><p>Select a report and slicer values. SQL is assembled from learned skills.</p></div>
+  <div class="generate-layout">
+    <div class="config-panel">
+      <div class="config-title">📋 Configuration</div>
+      <div class="form-group">
+        <label class="form-label">Report</label>
+        <select class="inp" id="report-select"></select>
+      </div>
+      <div class="filter-section">
+        <div class="filter-title">🎛️ Slicer Values</div>
+        <div id="slicer-inputs"></div>
+      </div>
+      <button class="btn btn-primary" id="gen-btn" onclick="generateSQL()">⚡ Generate SQL</button>
+    </div>
+    <div class="sql-panel">
+      <div class="sql-header">
+        <div><h3>Generated SQL</h3><span class="sql-meta" id="sql-meta"></span></div>
+        <div class="sql-actions">
+          <button class="sql-action-btn" onclick="copySQL()">📋 Copy</button>
+          <button class="sql-action-btn" onclick="downloadSQL()">💾 Download</button>
+        </div>
+      </div>
+      <div id="sql-output"><div class="sql-empty">Select a report and click Generate SQL</div></div>
+    </div>
+  </div>
+</div>
+<script>
+const API='http://localhost:8000';
+let currentSQL='';
+let reportData={};
+
+async function init(){
+  const resp=await fetch(API+'/api/reports');
+  const data=await resp.json();
+  const sel=document.getElementById('report-select');
+  data.reports.forEach(r=>{
+    sel.innerHTML+=`<option value="${r.report_id}">${r.report_name} (${r.fields_count} fields)</option>`;
+  });
+  // Load first report's slicers
+  loadSlicers(data.reports[0].report_id);
+  sel.onchange=()=>loadSlicers(sel.value);
+}
+
+async function loadSlicers(reportId){
+  const resp=await fetch(API+'/api/reports/'+reportId);
+  reportData=await resp.json();
+  const div=document.getElementById('slicer-inputs');
+  div.innerHTML='';
+  (reportData.slicers||[]).forEach(s=>{
+    div.innerHTML+=`<div class="form-group"><label class="form-label">${s.required?'<span style="color:#f85149">● </span>':''}${s.name}</label><input class="inp" data-slicer="${s.name}" placeholder="${s.required?'Required':'All (no slicer)'}"></div>`;
+  });
+}
+
+async function generateSQL(){
+  const btn=document.getElementById('gen-btn');
+  btn.disabled=true;btn.textContent='⏳ Generating...';
+  const reportId=document.getElementById('report-select').value;
+  const slicers={};
+  document.querySelectorAll('[data-slicer]').forEach(el=>{
+    if(el.value.trim())slicers[el.dataset.slicer]=el.value.trim();
+  });
+  try{
+    const resp=await fetch(API+'/api/generate-sql',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({report_id:reportId,slicers})
+    });
+    const data=await resp.json();
+    currentSQL=data.sql;
+    document.getElementById('sql-output').innerHTML=`<pre class="sql-output">${escapeHtml(data.sql)}</pre>`;
+    const lines=data.sql.split('\n').length;
+    document.getElementById('sql-meta').textContent=`${lines} lines · ${Object.keys(slicers).length} slicers applied`;
+  }catch(e){
+    document.getElementById('sql-output').innerHTML=`<div class="sql-empty" style="color:#f85149">⚠ Error: Could not reach backend</div>`;
+  }
+  btn.disabled=false;btn.textContent='⚡ Generate SQL';
+}
+
+function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function copySQL(){navigator.clipboard.writeText(currentSQL);document.querySelector('.sql-action-btn').textContent='✅ Copied!';}
+function downloadSQL(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([currentSQL],{type:'text/sql'}));a.download='validation.sql';a.click();}
+
+init();
+</script>
+</body>
+</html>
