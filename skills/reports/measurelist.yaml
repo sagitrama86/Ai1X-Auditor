@@ -24,7 +24,7 @@ uses_joins:
   - join_fqr_keyvaluemapping
 
 fixed_filters:
-  - "F.isRaw = 0"
+  - "F.isRau = 0"
   - "F.isUtilization = 0"
   - "RN = 1"
 

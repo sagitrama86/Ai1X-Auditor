@@ -1,0 +1,799 @@
+# ============================================================
+# HEDIS Technical Specification Reference
+# Scope: Structural patterns, calculation logic, eligibility
+#         rules, and validation requirements.
+# Source: Publicly available NCQA info + standard RDW patterns.
+# Does NOT contain copyrighted NCQA specification text.
+# ============================================================
+
+version: "HEDIS MY2024"
+spec_version: "Volume 2 — Technical Specifications"
+last_updated: "2026-03-10"
+disclaimer: >
+  This file captures structural patterns and calculation logic
+  for HEDIS quality measures. It does not reproduce copyrighted
+  NCQA specification text. All measure descriptions are based on
+  publicly available NCQA information.
+
+# ============================================================
+# GENERAL GUIDELINES
+# ============================================================
+general_guidelines:
+
+  measurement_year:
+    description: "Calendar year for which measures are reported"
+    format: "YYYY (e.g., 2024)"
+    intake_period: "Jan 1 – Dec 31 of measurement year"
+    note: "Some measures have lookback periods extending before MY"
+
+  data_sources:
+    Administrative:
+      description: "Claims and encounter data only"
+      applies_to: "All measures unless hybrid-only"
+    Hybrid:
+      description: "Administrative data supplemented with medical record review"
+      applies_to: "Subset of measures requiring chart abstraction"
+      sample_size: "Minimum Required Sample Size (MRSS) applies"
+    ECDS:
+      description: "Electronic Clinical Data Systems — EHR, HIE, clinical registry"
+      applies_to: "Measures with ECDS-eligible specifications"
+
+  eligible_population_framework:
+    steps:
+      - step: 1
+        name: "Product Line"
+        description: "Commercial, Medicaid, or Medicare"
+      - step: 2
+        name: "Age"
+        description: "Age criteria specific to each measure"
+      - step: 3
+        name: "Continuous Enrollment"
+        description: "Required enrollment period with allowable gap"
+      - step: 4
+        name: "Anchor Date"
+        description: "Date that establishes eligibility (varies by measure)"
+      - step: 5
+        name: "Benefit"
+        description: "Required benefit coverage (medical, pharmacy, mental health)"
+      - step: 6
+        name: "Event/Diagnosis"
+        description: "Qualifying event or diagnosis (for event-based measures)"
+      - step: 7
+        name: "Denominator"
+        description: "Members meeting all above criteria"
+      - step: 8
+        name: "Numerator"
+        description: "Members meeting performance criteria"
+      - step: 9
+        name: "Required Exclusions"
+        description: "NCQA-defined conditions removing members from denominator"
+      - step: 10
+        name: "Optional Exclusions"
+        description: "Organization-elected exclusions"
+
+  continuous_enrollment:
+    description: "Member must be enrolled for a specified period"
+    allowable_gap:
+      default_days: 45
+      note: "One gap of up to 45 days during each enrollment segment"
+    anchor_date_types:
+      - "December 31 of measurement year (most common)"
+      - "Date of event (event-based measures)"
+      - "Date of discharge (follow-up measures)"
+
+  reporting_requirements:
+    product_lines: [Commercial, Medicaid, Medicare]
+    age_calculation: "As of December 31 of measurement year (unless otherwise specified)"
+    submission_levels:
+      - "Organization total"
+      - "Product line"
+      - "Submission (NCQA submission ID)"
+
+# ============================================================
+# MEASURE TYPE DEFINITIONS
+# ============================================================
+measure_types:
+
+  Patient-Process:
+    entity: "Patient"
+    count_column: patientSSUI
+    description: "One eligible member per denominator. Measures whether a process was performed."
+    denominator: "Eligible members meeting age, enrollment, and benefit criteria"
+    numerator: "Members for whom the process/service was performed"
+    examples: [BCS, CBP, CIS, COL, CDC, WCC, IMA]
+    dedup_note: "One row per patient per measure per submission"
+
+  Visit:
+    entity: "Visit"
+    count_column: visitSSUI
+    description: "One eligible visit per denominator. Measures visit-level performance."
+    denominator: "Qualifying visits meeting criteria"
+    numerator: "Visits meeting performance criteria"
+    examples: [AWC, W30, W15]
+    dedup_note: "One row per visit per measure per submission"
+
+  Event:
+    entity: "Event"
+    count_column: eventSSUI
+    description: "One qualifying event per denominator. Measures follow-up after an event."
+    denominator: "Qualifying events (e.g., ED visits, discharges)"
+    numerator: "Events with appropriate follow-up"
+    examples: [FUA, FUM, PCE]
+    dedup_note: "One row per event per measure per submission"
+
+# ============================================================
+# CLINICAL STATUS CODES
+# ============================================================
+clinical_status_codes:
+
+  denominator_statuses:
+    17:
+      label: DE
+      full_name: "Denominator Eligible"
+      meaning: "Member is eligible and included in the denominator"
+      contributes_to: [Compliant, Non_Compliant, Denominator]
+      note: "Only DE rows contribute to compliance calculations"
+
+    16:
+      label: DVDE
+      full_name: "Denominator Valid Data Error"
+      meaning: "Member had data but it was invalid or incomplete"
+      contributes_to: [VDE]
+      note: "VDE = count of status 16 minus count of status 17 members with data errors"
+
+  exclusion_statuses:
+    23:
+      label: ECC
+      full_name: "Exclusion Clinical Code"
+      meaning: "Excluded by clinical code (e.g., hospice, bilateral mastectomy)"
+      contributes_to: [ECC, Required_Exclusion]
+
+    24:
+      label: ERF
+      full_name: "Exclusion Required Field"
+      meaning: "Excluded due to missing required field"
+      contributes_to: [ERF, Required_Exclusion]
+
+  counting_rules:
+    VDE:
+      formula: "COUNT(entitySSUI) WHERE clinicalonlystatus IN (16, 17) — COUNT(entitySSUI) WHERE clinicalonlystatus = 17"
+      note: "Members with data errors. Entity type depends on measuretype."
+    EDE:
+      formula: "COUNT(entitySSUI) WHERE clinicalonlystatus = 17"
+      note: "Denominator eligible count by entity"
+    ECC:
+      formula: "COUNT(entitySSUI) WHERE clinicalonlystatus = 23"
+    ERF:
+      formula: "COUNT(entitySSUI) WHERE clinicalonlystatus = 24"
+
+# ============================================================
+# COMPLIANCE CALCULATION
+# ============================================================
+compliance_calculation:
+
+  standard:
+    formula: "SUM(Act_Performance_Met) / NULLIF(SUM(Act_Performance_Met) + SUM(Act_Performance_Not_Met), 0) * 100"
+    applies_when: "NCQAInvertedFlag = 'N' or NULL"
+    note: "Higher rate = better performance"
+
+  inverted:
+    formula: "SUM(Act_Performance_Not_Met) / NULLIF(SUM(Act_Performance_Met) + SUM(Act_Performance_Not_Met), 0) * 100"
+    applies_when: "NCQAInvertedFlag = 'Y'"
+    note: "For inverted measures, Non Compliant is the numerator"
+    examples: ["CDC-02 (HbA1c Poor Control)", "PCE-01"]
+
+  denominator:
+    formula: "SUM(Act_Performance_Met) + SUM(Act_Performance_Not_Met)"
+    note: "Only DE (status=17) rows with isRau=0 and isUtilization=0"
+
+  required_exclusion:
+    formula: "SUM(reportingExclusionStatus)"
+    note: "Members excluded from denominator by NCQA-defined criteria"
+
+  validation_rules:
+    - rule: "Compliant <= Denominator"
+      severity: error
+    - rule: "Non Compliant <= Denominator"
+      severity: error
+    - rule: "Compliant + Non Compliant = Denominator"
+      severity: error
+      note: "For DE rows only"
+    - rule: "Act_Performance_Met + Act_Performance_Not_Met = 1 for each DE row"
+      severity: error
+    - rule: "Required Exclusion members should not appear in Compliant or Non Compliant"
+      severity: warning
+    - rule: "Compliance % must be between 0 and 100"
+      severity: error
+
+# ============================================================
+# PERCENTILE RANKING (NCQA Quality Compass)
+# ============================================================
+percentile_ranking:
+
+  description: "Ranks organization performance against national benchmarks"
+  source: "NCQA Quality Compass cutpoints published annually"
+
+  cutpoints:
+    Cutpoint3: {percentile: "25th", meaning: "Below this = <25th percentile"}
+    Cutpoint5: {percentile: "50th", meaning: "Between Cutpoint3 and Cutpoint5 = 25th"}
+    Cutpoint7: {percentile: "75th", meaning: "Between Cutpoint5 and Cutpoint7 = 50th"}
+    Cutpoint8: {percentile: "90th", meaning: "At or above = 90th percentile"}
+
+  calculation_logic:
+    standard_measure:
+      description: "Higher compliance = better"
+      buckets:
+        - condition: "rate < Cutpoint3"
+          result: "<25th"
+        - condition: "rate >= Cutpoint3 AND rate < Cutpoint5"
+          result: "25th"
+        - condition: "rate >= Cutpoint5 AND rate < Cutpoint7"
+          result: "50th"
+        - condition: "rate >= Cutpoint7 AND rate < Cutpoint8"
+          result: "75th"
+        - condition: "rate >= Cutpoint8"
+          result: "90th"
+
+    inverted_measure:
+      description: "Lower compliance = better (e.g., CDC-02 HbA1c Poor Control)"
+      note: "Cutpoints are in descending order. Comparison direction is reversed."
+      buckets:
+        - condition: "rate > Cutpoint3"
+          result: "<25th"
+        - condition: "rate <= Cutpoint3 AND rate > Cutpoint5"
+          result: "25th"
+        - condition: "rate <= Cutpoint5 AND rate > Cutpoint7"
+          result: "50th"
+        - condition: "rate <= Cutpoint7 AND rate > Cutpoint8"
+          result: "75th"
+        - condition: "rate <= Cutpoint8"
+          result: "90th"
+
+  gap_to_percentile:
+    description: "Number of additional compliant members needed to reach a target percentile"
+    formula_standard: "CEIL(Denominator * Cutpoint / 100) - Compliant"
+    formula_inverted: "CEIL(Denominator * Cutpoint / 100) - Non_Compliant"
+    display_rule: "Show NULL if already at or above target, or if denominator is 0"
+    targets: ["25th (Cutpoint3)", "50th (Cutpoint5)", "75th (Cutpoint7)", "90th (Cutpoint8)"]
+
+  edge_cases:
+    - "If all 4 cutpoints are 0, PCTL = NULL (no benchmark available)"
+    - "If denominator is 0, PCTL = NULL"
+    - "Gap values <= 0 should display as NULL (already met target)"
+
+# ============================================================
+# STAR RATINGS
+# ============================================================
+star_ratings:
+
+  description: "CMS Star Ratings for Medicare Advantage and Part D plans"
+  indicator_column: "STARINDICATOR"
+  display_rule: "If STARINDICATOR = 'Y', append asterisk to measure name: 'AWC-01*'"
+
+  star_rated_measures:
+    - AWC
+    - BCS
+    - CBP
+    - CIS
+    - COL
+    - CDC
+
+  non_star_measures:
+    - FUA
+    - PCE
+    - WCC
+
+# ============================================================
+# INVERSE MEASURES
+# ============================================================
+inverse_measures:
+
+  description: "Measures where lower rates indicate better performance"
+
+  flags:
+    InverseFlag:
+      "Y": "Lower rate is better — percentile comparison direction reversed"
+      "N": "Higher rate is better (standard)"
+    NCQAInvertedFlag:
+      "Y": "Use Act_Performance_Not_Met as numerator"
+      "N": "Use Act_Performance_Met as numerator (standard)"
+
+  four_way_matrix:
+    - NCQAInverted: "N"
+      Inverse: "N"
+      numerator: "Act_Performance_Met"
+      direction: "Higher is better"
+      example: "Most measures (AWC, BCS, CBP, etc.)"
+
+    - NCQAInverted: "Y"
+      Inverse: "Y"
+      numerator: "Act_Performance_Not_Met"
+      direction: "Lower is better"
+      example: "CDC-02 (HbA1c Poor Control >9%)"
+
+    - NCQAInverted: "Y"
+      Inverse: "N"
+      numerator: "Act_Performance_Not_Met"
+      direction: "Higher is better"
+      example: "PCE-01 (Pharmacotherapy for COPD)"
+
+    - NCQAInverted: "N"
+      Inverse: "Y"
+      numerator: "Act_Performance_Met"
+      direction: "Lower is better"
+      example: "Rare — theoretical combination"
+
+  display_rules:
+    - "If InverseFlag = 'Y', append '(Inverse)' to measure display name"
+    - "Percentile bucket assignment uses inverted comparison when InverseFlag = 'Y'"
+
+# ============================================================
+# STANDARD FIXED FILTERS
+# ============================================================
+standard_filters:
+
+  required_for_all_quality_reports:
+    - column: isRau
+      value: 0
+      reason: "Exclude Risk Adjusted Utilization rows"
+    - column: isUtilization
+      value: 0
+      reason: "Exclude utilization measures from quality reports"
+    - column: RN
+      value: 1
+      reason: "Deduplication — keep only first row per factssui + SubmissionId"
+
+  deduplication:
+    method: ROW_NUMBER
+    partition_by: [factssui, SubmissionId]
+    order_by: "factssui, SubmissionId ASC"
+    filter: "RN = 1"
+    reason: "Potential duplicate rows in source data require deduplication"
+
+# ============================================================
+# MEASURE CATALOG — Eligibility & Calculation Details
+# ============================================================
+measure_catalog:
+
+  AWC:
+    code: AWC
+    name: "Adolescent Well-Care Visits"
+    measure_type: Visit
+    product_lines: [Commercial, Medicaid]
+    ages: "12-21 years"
+    continuous_enrollment: "Measurement year"
+    anchor_date: "December 31 of MY"
+    denominator: "Members 12-21 as of Dec 31 with continuous enrollment"
+    numerator: "At least one comprehensive well-care visit during MY"
+    required_exclusions: [Hospice, Deceased]
+    data_sources: [Administrative, Hybrid]
+    star_rated: true
+    inverse: false
+    sub_measures:
+      AWC-01: "Adolescent Well-Care Visits"
+
+  BCS:
+    code: BCS
+    name: "Breast Cancer Screening"
+    measure_type: Patient-Process
+    product_lines: [Commercial, Medicaid, Medicare]
+    ages: "50-74 years (female)"
+    continuous_enrollment: "Measurement year and year prior"
+    anchor_date: "December 31 of MY"
+    denominator: "Women 50-74 as of Dec 31 with continuous enrollment"
+    numerator: "Mammogram during MY or year prior"
+    required_exclusions: [Hospice, Deceased, Bilateral_Mastectomy, History_of_Bilateral_Mastectomy]
+    data_sources: [Administrative, Hybrid]
+    star_rated: true
+    inverse: false
+    sub_measures:
+      BCS-01: "Breast Cancer Screening"
+
+  CBP:
+    code: CBP
+    name: "Controlling High Blood Pressure"
+    measure_type: Patient-Process
+    product_lines: [Commercial, Medicaid, Medicare]
+    ages: "18-85 years"
+    continuous_enrollment: "Measurement year"
+    anchor_date: "December 31 of MY"
+    denominator: "Members 18-85 with hypertension diagnosis"
+    numerator: "BP adequately controlled (<140/90 or <130/80 for diabetes)"
+    required_exclusions: [Hospice, Deceased, ESRD, Kidney_Transplant, Pregnancy]
+    data_sources: [Hybrid]
+    star_rated: true
+    inverse: false
+    sub_measures:
+      CBP-01: "Controlling High Blood Pressure"
+
+  CIS:
+    code: CIS
+    name: "Childhood Immunization Status"
+    measure_type: Patient-Process
+    product_lines: [Commercial, Medicaid]
+    ages: "2 years (turning 2 during MY)"
+    continuous_enrollment: "12 months prior to 2nd birthday"
+    anchor_date: "2nd birthday"
+    denominator: "Children turning 2 during MY with continuous enrollment"
+    numerator: "Appropriate immunizations by 2nd birthday"
+    required_exclusions: [Hospice, Deceased]
+    data_sources: [Administrative, Hybrid]
+    star_rated: true
+    inverse: false
+    sub_measures:
+      CIS-01: "DTaP"
+      CIS-02: "IPV"
+      CIS-03: "MMR"
+      CIS-04: "HiB"
+      CIS-05: "Hepatitis B"
+      CIS-06: "VZV"
+      CIS-07: "Pneumococcal Conjugate"
+      CIS-08: "Hepatitis A"
+      CIS-09: "Rotavirus"
+      CIS-10: "Combination 10 (all of the above)"
+
+  COL:
+    code: COL
+    name: "Colorectal Cancer Screening"
+    measure_type: Patient-Process
+    product_lines: [Commercial, Medicaid, Medicare]
+    ages: "45-75 years"
+    continuous_enrollment: "Measurement year"
+    anchor_date: "December 31 of MY"
+    denominator: "Members 45-75 with continuous enrollment"
+    numerator: "Appropriate screening (FOBT annually, FIT-DNA every 3 years, colonoscopy every 10 years, CT colonography every 5 years)"
+    required_exclusions: [Hospice, Deceased, Colorectal_Cancer, Total_Colectomy]
+    data_sources: [Administrative, Hybrid]
+    star_rated: true
+    inverse: false
+    sub_measures:
+      COL-01: "Colorectal Cancer Screening"
+
+  CDC:
+    code: CDC
+    name: "Comprehensive Diabetes Care"
+    measure_type: Patient-Process
+    product_lines: [Commercial, Medicaid, Medicare]
+    ages: "18-75 years"
+    continuous_enrollment: "Measurement year"
+    anchor_date: "December 31 of MY"
+    denominator: "Members 18-75 with diabetes (Type 1 or Type 2)"
+    required_exclusions: [Hospice, Deceased]
+    data_sources: [Administrative, Hybrid]
+    star_rated: true
+    sub_measures:
+      CDC-01:
+        name: "HbA1c Testing"
+        numerator: "HbA1c test performed during MY"
+        inverse: false
+        ncqa_inverted: false
+      CDC-02:
+        name: "HbA1c Poor Control (>9%)"
+        numerator: "Most recent HbA1c > 9% OR no HbA1c test OR no result"
+        inverse: true
+        ncqa_inverted: true
+        note: "INVERTED — lower rate is better. Numerator = Non Compliant."
+      CDC-03:
+        name: "HbA1c Good Control (<8%)"
+        numerator: "Most recent HbA1c < 8%"
+        inverse: false
+        ncqa_inverted: false
+
+  FUA:
+    code: FUA
+    name: "Follow-Up After ED Visit for Alcohol and Other Drug Abuse or Dependence"
+    measure_type: Event
+    product_lines: [Commercial, Medicaid, Medicare]
+    ages: "13 years and older"
+    continuous_enrollment: "30 days after ED visit"
+    anchor_date: "Date of ED visit"
+    denominator: "ED visits with AOD diagnosis"
+    required_exclusions: [Hospice, Deceased]
+    data_sources: [Administrative]
+    star_rated: false
+    inverse: false
+    sub_measures:
+      FUA-01:
+        name: "7-Day Follow-Up"
+        numerator: "Follow-up visit within 7 days of ED visit"
+      FUA-02:
+        name: "30-Day Follow-Up"
+        numerator: "Follow-up visit within 30 days of ED visit"
+
+  PCE:
+    code: PCE
+    name: "Pharmacotherapy Management of COPD Exacerbation"
+    measure_type: Event
+    product_lines: [Commercial, Medicaid, Medicare]
+    ages: "40 years and older"
+    continuous_enrollment: "30 days after discharge"
+    anchor_date: "Date of discharge"
+    denominator: "Acute inpatient discharges or ED visits for COPD exacerbation"
+    numerator: "Dispensed systemic corticosteroid or bronchodilator within 30 days"
+    required_exclusions: [Hospice, Deceased]
+    data_sources: [Administrative]
+    star_rated: false
+    inverse: true
+    ncqa_inverted: true
+    note: "INVERTED measure"
+    sub_measures:
+      PCE-01: "Pharmacotherapy for COPD Exacerbation"
+
+  WCC:
+    code: WCC
+    name: "Weight Assessment and Counseling for Nutrition and Physical Activity for Children/Adolescents"
+    measure_type: Patient-Process
+    product_lines: [Commercial, Medicaid]
+    ages: "3-17 years"
+    continuous_enrollment: "Measurement year"
+    anchor_date: "December 31 of MY"
+    denominator: "Members 3-17 with outpatient visit during MY"
+    required_exclusions: [Hospice, Deceased, Pregnancy]
+    data_sources: [Administrative, Hybrid]
+    star_rated: false
+    inverse: false
+    sub_measures:
+      WCC-01:
+        name: "BMI Percentile"
+        numerator: "BMI percentile documented during MY"
+      WCC-02:
+        name: "Counseling for Nutrition"
+        numerator: "Nutrition counseling documented during MY"
+      WCC-03:
+        name: "Counseling for Physical Activity"
+        numerator: "Physical activity counseling documented during MY"
+
+  IMA:
+    code: IMA
+    name: "Immunizations for Adolescents"
+    measure_type: Patient-Process
+    product_lines: [Commercial, Medicaid]
+    ages: "13 years (turning 13 during MY)"
+    continuous_enrollment: "12 months prior to 13th birthday"
+    anchor_date: "13th birthday"
+    denominator: "Adolescents turning 13 during MY"
+    required_exclusions: [Hospice, Deceased]
+    data_sources: [Administrative, Hybrid]
+    star_rated: true
+    inverse: false
+    sub_measures:
+      IMA-01: "Combination 2 (Meningococcal + Tdap)"
+
+# ============================================================
+# COMMON REQUIRED EXCLUSIONS
+# ============================================================
+required_exclusions:
+
+  Hospice:
+    description: "Member enrolled in hospice or using hospice services during MY"
+    applies_to: "All measures"
+    detection: "Hospice encounter or enrollment record"
+
+  Deceased:
+    description: "Member deceased during MY"
+    applies_to: "All measures"
+    detection: "Death date on file"
+
+  Bilateral_Mastectomy:
+    description: "History of bilateral mastectomy"
+    applies_to: [BCS]
+    detection: "Bilateral mastectomy procedure code or two unilateral codes"
+
+  Colorectal_Cancer:
+    description: "History of colorectal cancer"
+    applies_to: [COL]
+    detection: "Colorectal cancer diagnosis code"
+
+  Total_Colectomy:
+    description: "History of total colectomy"
+    applies_to: [COL]
+    detection: "Total colectomy procedure code"
+
+  ESRD:
+    description: "End-Stage Renal Disease"
+    applies_to: [CBP]
+    detection: "ESRD diagnosis or dialysis codes"
+
+  Kidney_Transplant:
+    description: "History of kidney transplant"
+    applies_to: [CBP]
+    detection: "Kidney transplant procedure code"
+
+  Pregnancy:
+    description: "Pregnancy during MY"
+    applies_to: [CBP, WCC]
+    detection: "Pregnancy diagnosis code"
+
+# ============================================================
+# REPORT TYPES & STANDARD STRUCTURE
+# ============================================================
+report_types:
+
+  MeasureList:
+    description: "One row per measure per submission. Shows compliance rates and rankings."
+    typical_group_by: [Measures, Submission]
+    typical_columns:
+      - Measures
+      - Submission
+      - "Compliance %"
+      - MRSS
+      - Denominator
+      - Compliant
+      - "Non Compliant"
+      - "Required Exclusion"
+      - VDE
+      - EDE
+      - ECC
+      - ERF
+      - "Current PCTL"
+      - "To reach (25th PCTL)"
+      - "To reach (50th PCTL)"
+      - "To reach (75th PCTL)"
+      - "To reach (90th PCTL)"
+    composite_key: [Measures, Submission]
+
+  IDSSHierarchy:
+    description: "Breakdown by source system and feed type. Shows where data originates."
+    typical_group_by: [Measures, Submission, "Source Feed Type", "Source System"]
+    typical_columns:
+      - Measures
+      - Submission
+      - "Source Feed Type"
+      - "Source System"
+      - Denominator
+      - Compliant
+      - "Non Compliant"
+      - "Required Exclusion"
+    composite_key: [Measures, Submission, "Source Feed Type", "Source System"]
+
+  ProviderDetail:
+    description: "Provider-level performance. Shows compliance by provider group and provider."
+    typical_group_by: [Measures, Submission, "Provider Group", "Provider Name"]
+    typical_columns:
+      - Measures
+      - Submission
+      - "Provider Group"
+      - "Provider Name"
+      - "Provider NPI"
+      - Denominator
+      - Compliant
+      - "Compliance %"
+    composite_key: [Measures, Submission, "Provider Group", "Provider Name"]
+
+  GapsInCare:
+    description: "Member-level detail for non-compliant members. Used for outreach."
+    typical_group_by: [Measures, Submission, "Member ID"]
+    typical_columns:
+      - Measures
+      - Submission
+      - "Member ID"
+      - "Member Name"
+      - "Provider Name"
+      - "Last Service Date"
+      - "Gap Reason"
+    composite_key: [Measures, Submission, "Member ID"]
+
+# ============================================================
+# STANDARD SLICERS (Power BI Filters)
+# ============================================================
+standard_slicers:
+
+  required:
+    - name: "Organization Name"
+      column: "A.organizationname"
+      source_table: factqualityreport
+      required_for_all: true
+
+    - name: "Measurement Year"
+      column: "A.MeasurementYear"
+      source_table: factqualityreport
+      required_for_all: true
+
+  optional:
+    - name: "Line of Business"
+      column: "D.productcategoryname"
+      source_table: dimproductcategory
+      values: [Commercial, Medicaid, Medicare]
+
+    - name: "Business Group"
+      column: "A.businessgroupcode"
+      source_table: factQualityReport_Filters
+
+    - name: "Submission"
+      column: "A.NCQA_Submission_ID_Name"
+      source_table: factqualityreport
+
+    - name: "Products"
+      column: "A.productname"
+      source_table: factQualityReport_Filters
+
+    - name: "Health Plans"
+      column: "A.healthplanname"
+      source_table: factQualityReport_Filters
+
+    - name: "NCQA Domain"
+      column: "M.CMQDOMAIN"
+      source_table: measuredetails
+
+    - name: "Health Category"
+      column: "M.category"
+      source_table: measuredetails
+
+    - name: "Measures"
+      column: "Measures"
+      note: "Computed: CONCAT(submeasurecode, ' ', name)"
+
+    - name: "Enrollment Status"
+      column: "A.enrollmentStatus"
+      source_table: factqualityreport
+
+# ============================================================
+# CROSS-FIELD VALIDATION RULES
+# ============================================================
+cross_field_validations:
+
+  - rule: "Compliant <= Denominator"
+    severity: error
+    applies_when: "Always"
+
+  - rule: "Non Compliant <= Denominator"
+    severity: error
+    applies_when: "Always"
+
+  - rule: "Compliant + Non Compliant == Denominator"
+    severity: error
+    applies_when: "For aggregated rows"
+
+  - rule: "Compliance % between 0 and 100"
+    severity: error
+    applies_when: "When Denominator > 0"
+
+  - rule: "Required Exclusion <= Denominator + Required Exclusion"
+    severity: warning
+    applies_when: "Always"
+
+  - rule: "PCTL must be one of: <25th, 25th, 50th, 75th, 90th, NULL"
+    severity: error
+    applies_when: "Always"
+
+  - rule: "Gap to PCTL must be NULL or positive integer"
+    severity: error
+    applies_when: "Always"
+
+  - rule: "VDE + EDE + ECC + ERF should account for all members"
+    severity: warning
+    applies_when: "When clinical status columns present"
+
+  - rule: "Inverted measures: Compliance % calculated from Non Compliant"
+    severity: error
+    applies_when: "NCQAInvertedFlag = 'Y'"
+
+# ============================================================
+# CROSS-REPORT VALIDATION RULES
+# ============================================================
+cross_report_validations:
+
+  - source_report: MeasureList
+    source_column: Denominator
+    target_report: IDSSHierarchy
+    target_column: "SUM(Denominator)"
+    match_by: [Measures, Submission]
+    rule: "MeasureList Denominator = SUM of IDSS Denominator for same measure"
+    severity: error
+
+  - source_report: MeasureList
+    source_column: Compliant
+    target_report: IDSSHierarchy
+    target_column: "SUM(Compliant)"
+    match_by: [Measures, Submission]
+    rule: "MeasureList Compliant = SUM of IDSS Compliant for same measure"
+    severity: error
+
+  - source_report: MeasureList
+    source_column: Denominator
+    target_report: ProviderDetail
+    target_column: "SUM(Denominator)"
+    match_by: [Measures, Submission]
+    rule: "MeasureList Denominator = SUM of Provider Denominator for same measure"
+    severity: warning
+    note: "May differ due to attribution model"

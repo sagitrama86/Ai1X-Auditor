@@ -207,6 +207,123 @@ function filterSkills(){
   `).join(''):'<div style="text-align:center;padding:40px;color:#484f58">No skills match your search.</div>';
 }
 
+function renderSchemaDetail(s){
+  const d=s.detail;
+  const cols=d.columns||{};
+  const joins=d.joins_with||[];
+  const problems=d.problems_and_suggestions||[];
+  const grain=d.grain||{};
+  const intent=d.table_intent||{};
+  const valDict=d.value_dictionary||{};
+  const colRels=d.column_relationships||[];
+  const derived=d.derived_columns||[];
+  const perf=d.performance||{};
+
+  let html=`
+    <div class="ms"><div class="ms-title">Overview</div>
+      <div class="mr"><span class="ml">Classification</span><span class="mv">${d.classification||'—'}</span></div>
+      <div class="mr"><span class="ml">Database</span><span class="mv">${d.database||'—'}</span></div>
+      <div class="mr"><span class="ml">Schema</span><span class="mv">${d.schema||'—'}</span></div>
+      <div class="mr"><span class="ml">Domain</span><span class="mv">${d.domain||'—'}</span></div>
+      <div class="mr"><span class="ml">Row Count</span><span class="mv">${(d.row_count_approx||'—').toLocaleString()}</span></div>
+      <div class="mr"><span class="ml">PII Present</span><span class="mv">${d.pii_present?'⚠ Yes':'No'}</span></div>
+      <div class="mr"><span class="ml">Tags</span><span class="mv">${(d.tags||[]).map(t=>'<span class="tag b">'+t+'</span>').join(' ')}</span></div>
+    </div>`;
+
+  if(d.business_purpose) html+=`<div class="ms"><div class="ms-title">Business Purpose</div><div style="font-size:13px;color:#c9d1d9;line-height:1.6">${d.business_purpose}</div></div>`;
+
+  html+=`<div class="ms"><div class="ms-title">Grain</div>
+    <div class="mr"><span class="ml">Description</span><span class="mv">${grain.description||'—'}</span></div>
+    <div class="mr"><span class="ml">Columns</span><span class="mv">${(grain.columns||[]).join(', ')||'—'}</span></div>
+    <div class="mr"><span class="ml">Primary Key</span><span class="mv">${(grain.composite_primary_key||[]).join(', ')||'—'}</span></div>
+    <div class="mr"><span class="ml">Unique?</span><span class="mv">${grain.uniqueness_guarantee?'✓ Yes':'✕ No'}</span></div>
+    ${grain.deduplication_logic?'<div class="mr"><span class="ml">Dedup</span><span class="mv"><code style="font-size:11px;background:#0d1117;padding:2px 6px;border-radius:4px">'+grain.deduplication_logic+'</code></span></div>':''}
+  </div>`;
+
+  if(intent.ai_primary_usage||intent.query_warnings){
+    html+=`<div class="ms"><div class="ms-title">AI Guidance</div>
+      ${intent.ai_primary_usage?'<div class="mr"><span class="ml">Usage</span><span class="mv">'+intent.ai_primary_usage.join(', ')+'</span></div>':''}
+      ${intent.typical_filters?'<div class="mr"><span class="ml">Typical Filters</span><span class="mv">'+intent.typical_filters.join(', ')+'</span></div>':''}
+      ${intent.typical_grouping?'<div class="mr"><span class="ml">Typical Grouping</span><span class="mv">'+intent.typical_grouping.join(', ')+'</span></div>':''}
+      ${(intent.query_warnings||[]).map(w=>'<div class="mr"><span class="ml">⚠ Warning</span><span class="mv" style="color:#d29922">'+w+'</span></div>').join('')}
+      ${(intent.common_business_questions||[]).map(q=>'<div class="mr"><span class="ml">❓</span><span class="mv">'+q+'</span></div>').join('')}
+    </div>`;
+  }
+
+  // Columns table
+  const colEntries=Object.entries(cols);
+  if(colEntries.length){
+    html+=`<div class="ms"><div class="ms-title">Columns (${colEntries.length})</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <tr style="border-bottom:1px solid #30363d"><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">NAME</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">BUSINESS NAME</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">TYPE</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">ROLE</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">AGG</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">DESCRIPTION</th></tr>
+        ${colEntries.map(([n,c])=>`<tr style="border-bottom:1px solid #21262d">
+          <td style="padding:5px 6px;font-weight:500;${c.pk?'color:#d29922':''}">${n}</td>
+          <td style="padding:5px 6px;color:#8b949e">${c.business_name||'—'}</td>
+          <td style="padding:5px 6px"><code style="font-size:10px;background:#0d1117;padding:1px 4px;border-radius:3px">${c.data_type||'—'}</code></td>
+          <td style="padding:5px 6px;color:#a371f7">${c.semantic_role||'—'}</td>
+          <td style="padding:5px 6px">${c.aggregatable?c.default_aggregation||'✓':'—'}</td>
+          <td style="padding:5px 6px;color:#8b949e;max-width:250px">${(c.description||'').substring(0,100)}</td>
+        </tr>`).join('')}
+      </table>
+    </div>`;
+  }
+
+  // Joins
+  if(joins.length){
+    html+=`<div class="ms"><div class="ms-title">Joins (${joins.length})</div>
+      ${joins.map(j=>`<div style="padding:6px 0;border-bottom:1px solid #21262d;font-size:12px">
+        <span style="color:#3fb950;font-weight:600">${j.join_type||'INNER'}</span> → <span style="font-weight:500">${j.table}</span>
+        <span style="color:#8b949e;margin-left:8px">${j.relationship||''}</span>
+        <div style="color:#8b949e;font-size:11px;margin-top:2px">${j.purpose||''}</div>
+        ${j.note?'<div style="color:#d29922;font-size:11px">⚠ '+j.note+'</div>':''}
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // Value Dictionary
+  const vdEntries=Object.entries(valDict);
+  if(vdEntries.length){
+    html+=`<div class="ms"><div class="ms-title">Value Dictionary</div>
+      ${vdEntries.map(([col,vals])=>`<div style="margin-bottom:8px"><div style="font-weight:500;font-size:12px;margin-bottom:4px">${col}</div>
+        ${Object.entries(vals).map(([k,v])=>`<div class="mr"><span class="ml" style="min-width:60px"><code style="font-size:11px;background:#0d1117;padding:1px 4px;border-radius:3px">${k}</code></span><span class="mv">${v}</span></div>`).join('')}
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // Column Relationships
+  if(colRels.length){
+    html+=`<div class="ms"><div class="ms-title">Column Relationships</div>
+      ${colRels.map(r=>`<div style="padding:4px 0;font-size:12px"><span style="color:#58a6ff">${r.column_a}</span> ↔ <span style="color:#58a6ff">${r.column_b}</span> <span class="tag b">${r.relationship_type}</span><div style="color:#8b949e;font-size:11px">${r.rule||''}</div></div>`).join('')}
+    </div>`;
+  }
+
+  // Derived Columns
+  if(derived.length){
+    html+=`<div class="ms"><div class="ms-title">Derived Columns</div>
+      ${derived.map(d=>`<div style="padding:4px 0;font-size:12px"><span style="font-weight:500">${d.name}</span> <span style="color:#8b949e">— ${d.description||''}</span>
+        <div class="yaml-block" style="margin-top:4px;max-height:100px">${d.formula||''}</div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // Problems
+  if(problems.length){
+    html+=`<div class="ms"><div class="ms-title">⚠ Problems & Suggestions</div>
+      ${problems.map(p=>`<div style="padding:6px 0;border-bottom:1px solid #21262d"><div style="color:#d29922;font-weight:600;font-size:12px">⚠ ${p.problem}</div><div style="color:#8b949e;font-size:11px;margin-top:2px">💡 ${p.suggestion}</div></div>`).join('')}
+    </div>`;
+  }
+
+  // Performance
+  if(perf.large_table){
+    html+=`<div class="ms"><div class="ms-title">Performance</div>
+      <div class="mr"><span class="ml">Large Table</span><span class="mv">${perf.large_table?'Yes':'No'}</span></div>
+      ${perf.recommended_filters?'<div class="mr"><span class="ml">Rec. Filters</span><span class="mv">'+perf.recommended_filters.join(', ')+'</span></div>':''}
+    </div>`;
+  }
+
+  return html;
+}
+
 function showDetail(id){
   const s=SKILLS.find(x=>x.id===id);if(!s)return;
   const dp=document.getElementById('detail-panel');
@@ -214,26 +331,29 @@ function showDetail(id){
   document.getElementById('dp-title').textContent=s.name;
   const typeClass={schema:'schema',joins:'join',domain:'domain',slicers:'slicer',reports:'report',validations:'validation'};
 
-  let detailRows='';
-  if(s.detail){
-    for(const[k,v]of Object.entries(s.detail)){
-      const val=Array.isArray(v)?v.join(', '):typeof v==='object'?JSON.stringify(v,null,2):String(v||'—');
-      detailRows+=`<div class="mr"><span class="ml">${k}</span><span class="mv">${val.length>100?'<pre style="text-align:left;white-space:pre-wrap;font-size:11px">'+val+'</pre>':val}</span></div>`;
+  if(s.cat==='schema'){
+    document.getElementById('dp-body').innerHTML=renderSchemaDetail(s);
+  } else {
+    let detailRows='';
+    if(s.detail){
+      for(const[k,v]of Object.entries(s.detail)){
+        const val=Array.isArray(v)?v.join(', '):typeof v==='object'?JSON.stringify(v,null,2):String(v||'—');
+        detailRows+=`<div class="mr"><span class="ml">${k}</span><span class="mv">${val.length>100?'<pre style="text-align:left;white-space:pre-wrap;font-size:11px">'+val+'</pre>':val}</span></div>`;
+      }
     }
+    document.getElementById('dp-body').innerHTML=`
+      <div class="ms"><div class="ms-title">Properties</div>
+        <div class="mr"><span class="ml">Type</span><span class="mv"><span class="skill-type ${typeClass[s.cat]||''}" style="font-size:12px">${s.cat}</span></span></div>
+        <div class="mr"><span class="ml">Tags</span><span class="mv">${(s.tags||[]).filter(t=>t).map(t=>'<span class="tag b">'+t+'</span>').join(' ')}</span></div>
+      </div>
+      <div class="ms"><div class="ms-title">Description</div>
+        <div style="font-size:13px;color:#c9d1d9;line-height:1.6">${s.desc}</div>
+      </div>
+      <div class="ms"><div class="ms-title">Details</div>${detailRows}</div>
+      <div class="ms" style="display:flex;gap:8px;padding:14px 20px">
+        <button class="btn btn-outline" style="font-size:12px" onclick="location='06-ai-chat.html'">💬 Edit in Chat</button>
+      </div>`;
   }
-
-  document.getElementById('dp-body').innerHTML=`
-    <div class="ms"><div class="ms-title">Properties</div>
-      <div class="mr"><span class="ml">Type</span><span class="mv"><span class="skill-type ${typeClass[s.cat]||''}" style="font-size:12px">${s.cat}</span></span></div>
-      <div class="mr"><span class="ml">Tags</span><span class="mv">${(s.tags||[]).filter(t=>t).map(t=>'<span class="tag b">'+t+'</span>').join(' ')}</span></div>
-    </div>
-    <div class="ms"><div class="ms-title">Description</div>
-      <div style="font-size:13px;color:#c9d1d9;line-height:1.6">${s.desc}</div>
-    </div>
-    <div class="ms"><div class="ms-title">Details</div>${detailRows}</div>
-    <div class="ms" style="display:flex;gap:8px;padding:14px 20px">
-      <button class="btn btn-outline" style="font-size:12px" onclick="location='06-ai-chat.html'">💬 Edit in Chat</button>
-    </div>`;
   dp.scrollIntoView({behavior:'smooth'});
 }
 

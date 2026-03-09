@@ -350,7 +350,7 @@ measure_display_name:
 # Applied to ALL quality reports
 # ============================================================
 standard_fixed_filters:
-  - column: isRaw
+  - column: isRau
     value: 0
     meaning: "Exclude raw/unaudited data"
     applies_to: "All quality reports"

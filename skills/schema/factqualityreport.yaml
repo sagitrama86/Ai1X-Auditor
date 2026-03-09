@@ -36,10 +36,10 @@ load_strategy:
 # --- AI Guidance ---
 table_intent:
   ai_primary_usage: [reporting, metric_calculation, analytics]
-  typical_filters: [isRaw, isUtilization, MeasurementYear, organizationid]
+  typical_filters: [isRau, isUtilization, MeasurementYear, organizationid]
   typical_grouping: [submeasurecode, NCQA_Submission_ID_Name, organizationname]
   query_warnings:
-    - "Always filter isRaw=0 and isUtilization=0"
+    - "Always filter isRau=0 and isUtilization=0"
     - "Always deduplicate with ROW_NUMBER OVER (PARTITION BY factssui, SubmissionId)"
     - "Join to measuredetails is conditional — keyvaluemeasureid takes precedence over clinicalmeasureid"
   join_priority_tables: [factQualityReport_Filters, measuredetails, dimorganization, qualitycutpoints]
@@ -422,9 +422,9 @@ columns:
     aggregation_behavior: non_additive
     business_rules: ["NULL when entity type is not event"]
 
-  isRaw:
-    business_name: Is Raw
-    description: "Whether this is raw (unaudited) data"
+  isRau:
+    business_name: Is RAU
+    description: "Whether this is a Risk Adjusted Utilization measure"
     semantic_role: flag
     data_type: BIT
     nullable: false
@@ -435,8 +435,8 @@ columns:
     groupable: false
     categorical: true
     constraints: "Values: 0 or 1"
-    allowed_values: {0: "Final/audited — include", 1: "Raw/preliminary — EXCLUDE"}
-    business_rules: ["Standard fixed filter: WHERE isRaw = 0"]
+    allowed_values: {0: "Not RAU — include in quality reports", 1: "RAU — EXCLUDE from quality reports"}
+    business_rules: ["Standard fixed filter: WHERE isRau = 0"]
 
   isUtilization:
     business_name: Is Utilization
@@ -629,9 +629,9 @@ value_dictionary:
     17: "DE — Denominator Eligible"
     23: "ECC — Exclusion Clinical Code"
     24: "ERF — Exclusion Required Field"
-  isRaw:
-    0: "Final/audited data"
-    1: "Raw/preliminary data"
+  isRau:
+    0: "Not RAU — include in quality reports"
+    1: "Risk Adjusted Utilization — exclude from quality reports"
   isUtilization:
     0: "Quality measure"
     1: "Utilization measure"
@@ -694,7 +694,7 @@ time_dimensions:
 # ============================================================
 performance:
   large_table: true
-  recommended_filters: [isRaw, isUtilization, organizationid, MeasurementYear]
+  recommended_filters: [isRau, isUtilization, organizationid, MeasurementYear]
   partition_strategy:
     column: MeasurementYear
   clustering_columns: [organizationid, submeasurecode]

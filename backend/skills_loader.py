@@ -14,12 +14,14 @@ def _load_yaml(path):
 def load_schema():
     tables = {}
     for p in (SKILLS_DIR / "schema").glob("*.yaml"):
+        if p.name.startswith("_"):
+            continue
         doc = _load_yaml(p)
         if isinstance(doc, list):
             for d in doc:
-                if "table_name" in d:
+                if isinstance(d, dict) and d.get("table_name"):
                     tables[d["table_name"]] = d
-        elif "table_name" in doc:
+        elif isinstance(doc, dict) and doc.get("table_name"):
             tables[doc["table_name"]] = doc
     return tables
 

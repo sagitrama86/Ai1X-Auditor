@@ -179,6 +179,90 @@ def get_runs():
             runs.append(json.load(fh))
     return {"runs": runs}
 
+# ---- Schema Discovery from Live DB ----
+
+class DiscoverRequest(BaseModel):
+    host: str = "localhost"
+    port: int = 3306
+    user: str = "root"
+    password: str = ""
+    database: str = "HEDIS_RDW"
+    schemas: str = "dbo"
+
+@app.post("/api/discover")
+def api_discover(req: DiscoverRequest):
+    try:
+        import pymysql
+    except ImportError:
+        return {"error": "pymysql not installed. Run: pip install pymysql"}
+
+    try:
+        conn = pymysql.connect(host=req.host, port=req.port, user=req.user,
+                               password=req.password, database=req.database)
+        cur = conn.cursor()
+
+        # Get tables
+        cur.execute("SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s", (req.database,))
+        tables_raw = cur.fetchall()
+
+        tables = {}
+        total_cols = 0
+        for tname, trows in tables_raw:
+            cur.execute("""
+                SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, COLUMN_COMMENT
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
+                ORDER BY ORDINAL_POSITION
+            """, (req.database, tname))
+            cols_raw = cur.fetchall()
+
+            columns = {}
+            for cname, dtype, ctype, nullable, ckey, cdefault, ccomment in cols_raw:
+                columns[cname] = {
+                    "data_type": ctype.upper(),
+                    "nullable": nullable == "YES",
+                    "pk": ckey == "PRI",
+                    "fk": None,
+                    "index": ckey if ckey else None,
+                    "description": ccomment or "",
+                }
+                total_cols += 1
+
+            # Detect classification
+            classification = "dimension"
+            tl = tname.lower()
+            if "fact" in tl: classification = "fact"
+            elif "dim" in tl: classification = "dimension"
+            elif "cutpoint" in tl or "mapping" in tl: classification = "lookup"
+
+            tables[tname] = {
+                "table_name": tname,
+                "schema": req.schemas,
+                "database": req.database,
+                "classification": classification,
+                "description": "",
+                "row_count_approx": trows or 0,
+                "columns": columns,
+                "grain": {"description": "", "columns": [c for c,v in columns.items() if v["pk"]]},
+            }
+
+        conn.close()
+
+        # Save discovered schema as YAML
+        import yaml
+        from pathlib import Path
+        skills_dir = Path(__file__).parent.parent / "skills" / "schema"
+        discovered_path = skills_dir / "_discovered.yaml"
+        with open(discovered_path, "w") as f:
+            for tname, tdata in tables.items():
+                yaml.dump(tdata, f, default_flow_style=False, sort_keys=False)
+                f.write("---\n")
+
+        return {"tables_count": len(tables), "columns_count": total_cols, "tables": list(tables.keys())}
+
+    except Exception as e:
+        return {"error": str(e)}
+
 # ---- Skills Library ----
 
 @app.get("/api/skills")
@@ -193,16 +277,7 @@ def get_skills():
             "id": f"schema_{name}", "cat": "schema", "name": name,
             "desc": (t.get("description") or "")[:200],
             "tags": t.get("tags", [t.get("classification", "")]),
-            "detail": {
-                "classification": t.get("classification"),
-                "columns_count": len(cols),
-                "row_count": t.get("row_count_approx"),
-                "grain": t.get("grain", {}).get("description", ""),
-                "business_purpose": t.get("business_purpose", ""),
-                "domain": t.get("domain", ""),
-                "ai_usage": t.get("table_intent", {}).get("ai_primary_usage", []),
-                "query_warnings": t.get("table_intent", {}).get("query_warnings", []),
-            }
+            "detail": t
         })
 
     # Joins

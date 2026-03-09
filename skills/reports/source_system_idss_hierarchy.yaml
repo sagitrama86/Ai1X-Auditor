@@ -5,7 +5,7 @@ base_table: factqualityreport
 status: ready
 description: 'Auto-generated report: Source System IDSS Hierarchy'
 fixed_filters:
-- isRaw = 0
+- isRau = 0
 - isUtilization = 0
 - RN = 1
 deduplication:

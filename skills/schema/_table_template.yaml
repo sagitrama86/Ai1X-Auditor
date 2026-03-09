@@ -34,7 +34,7 @@ table_intent:
   ai_primary_usage: []               # (sme) reporting / analytics / metric_calculation / lookup
   typical_filters: []                # (sme) columns commonly used in WHERE
   typical_grouping: []               # (sme) columns commonly used in GROUP BY
-  query_warnings: []                 # (sme) e.g. "Always filter isRaw=0"
+  query_warnings: []                 # (sme) e.g. "Always filter isRau=0"
   join_priority_tables: []           # (sme) most common tables to join with
   common_business_questions: []      # (sme) questions this table answers
 

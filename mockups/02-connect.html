@@ -144,13 +144,17 @@
     <div class="form-group">
       <label class="form-label">Database Type</label>
       <div class="auth-options">
-        <div class="auth-option selected">
+        <div class="auth-option" onclick="selectDb(this,'azuresql')">
           <div class="auth-option-title">Azure SQL</div>
           <div class="auth-option-desc">Azure SQL Database / Synapse</div>
         </div>
-        <div class="auth-option">
+        <div class="auth-option" onclick="selectDb(this,'oracle')">
           <div class="auth-option-title">Oracle</div>
           <div class="auth-option-desc">Oracle Database / RDW</div>
+        </div>
+        <div class="auth-option selected" onclick="selectDb(this,'mysql')">
+          <div class="auth-option-title">MySQL</div>
+          <div class="auth-option-desc">MySQL / MariaDB</div>
         </div>
       </div>
     </div>
@@ -158,42 +162,80 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Server</label>
-        <input class="form-input" type="text" placeholder="myserver.database.windows.net" value="hedis-prod.database.windows.net">
+        <input class="form-input" type="text" placeholder="myserver.database.windows.net" value="localhost" id="inp-server">
       </div>
       <div class="form-group">
         <label class="form-label">Database</label>
-        <input class="form-input" type="text" placeholder="database_name" value="HEDIS_RDW">
+        <input class="form-input" type="text" placeholder="database_name" value="HEDIS_RDW" id="inp-db">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Port</label>
+        <input class="form-input" type="text" placeholder="3306" value="3306" id="inp-port">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" type="text" placeholder="root" value="root" id="inp-user">
       </div>
     </div>
 
     <div class="form-group">
-      <label class="form-label">Authentication</label>
-      <div class="auth-options">
-        <div class="auth-option selected">
-          <div class="auth-option-title">Azure AD (SSO)</div>
-          <div class="auth-option-desc">Use your Azure Active Directory credentials</div>
-        </div>
-        <div class="auth-option">
-          <div class="auth-option-title">SQL Authentication</div>
-          <div class="auth-option-desc">Username and password</div>
-        </div>
-      </div>
+      <label class="form-label">Password</label>
+      <input class="form-input" type="password" placeholder="(leave blank if none)" value="" id="inp-pass">
     </div>
 
     <div class="form-group">
       <label class="form-label">Schema(s) to discover</label>
-      <input class="form-input" type="text" placeholder="dbo, hedis, reporting (comma-separated, or * for all)" value="dbo">
+      <input class="form-input" type="text" placeholder="dbo, hedis, reporting (comma-separated, or * for all)" value="dbo" id="inp-schema">
       <div class="form-hint">Specify which schemas to scan. Use * to discover all schemas.</div>
     </div>
 
     <div class="form-actions">
       <button class="btn btn-outline" onclick="window.location.href='01-home.html'">Cancel</button>
-      <button class="btn btn-primary" onclick="window.location.href='03-discovering.html'">
+      <button class="btn btn-primary" id="btn-connect" onclick="doConnect()">
         🔍 Connect & Discover Schema
       </button>
     </div>
+    <div id="status-msg" style="margin-top:16px;font-size:13px;display:none"></div>
   </div>
 </div>
 
-</body>
-</html>
+<script>
+const API='http://localhost:8000';
+function selectDb(el,type){
+  document.querySelectorAll('.auth-options .auth-option').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+async function doConnect(){
+  const btn=document.getElementById('btn-connect');
+  const msg=document.getElementById('status-msg');
+  btn.disabled=true; btn.textContent='⏳ Connecting...';
+  msg.style.display='block'; msg.style.color='#8b949e'; msg.textContent='Connecting to database...';
+
+  const payload={
+    host: document.getElementById('inp-server').value,
+    port: parseInt(document.getElementById('inp-port').value)||3306,
+    user: document.getElementById('inp-user').value,
+    password: document.getElementById('inp-pass').value,
+    database: document.getElementById('inp-db').value,
+    schemas: document.getElementById('inp-schema').value
+  };
+
+  try{
+    const resp=await fetch(API+'/api/discover',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await resp.json();
+    if(data.error){
+      msg.style.color='#f85149'; msg.textContent='❌ '+data.error;
+      btn.disabled=false; btn.textContent='🔍 Connect & Discover Schema';
+    } else {
+      msg.style.color='#3fb950'; msg.textContent='✅ Discovered '+data.tables_count+' tables, '+data.columns_count+' columns. Redirecting...';
+      setTimeout(()=>window.location.href='05-home-loaded.html',1500);
+    }
+  }catch(e){
+    msg.style.color='#f85149'; msg.textContent='❌ Cannot reach backend. Is the server running on port 8000?';
+    btn.disabled=false; btn.textContent='🔍 Connect & Discover Schema';
+  }
+}
+</script>
