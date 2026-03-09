@@ -74,15 +74,15 @@
     <div class="nav-section">
       <div class="nav-section-title">Main</div>
       <div class="nav-item active">🏠 Home</div>
-      <div class="nav-item"onclick="location='16-schema.html'">🗄️ Schema</div>
+      <div class="nav-item"onclick="location='16-schema.html'">🔍 Schema Explorer</div>
       <div class="nav-item"onclick="location='15-skills-library.html'">🔧 Skills Library</div>
     </div>
     <div class="nav-section">
       <div class="nav-section-title">Generate</div>
       <div class="nav-item" onclick="window.location.href='06-ai-chat.html'">💬 AI Chat</div>
       <div class="nav-item" onclick="window.location.href='08-reports.html'">📄 Reports</div>
-      <div class="nav-item" onclick="window.location.href='07-generate-sql.html'">⌨️ SQL Output</div>
-      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item" onclick="window.location.href='07-generate-sql.html'">🛢️ Generate SQL</div>
+      <div class="nav-item" onclick="location='10-compare.html'">⚖️ Compare</div>
       <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div>
     </div>
   </div>
@@ -104,7 +104,7 @@
   <!-- Schema refresh banner -->
   <div class="refresh-banner">
     <div class="refresh-left">
-      🗄️ Schema: <strong>HEDIS_RDW</strong> &nbsp;·&nbsp; 23 tables &nbsp;·&nbsp; 847 columns &nbsp;·&nbsp; 20 joins &nbsp;·&nbsp; Last synced: Mar 1, 2026
+      🔍 Schema: <strong>HEDIS_RDW</strong> &nbsp;·&nbsp; 23 tables &nbsp;·&nbsp; 847 columns &nbsp;·&nbsp; 20 joins &nbsp;·&nbsp; Last synced: Mar 1, 2026
     </div>
     <button class="btn btn-outline" onclick="window.location.href='02-connect.html'">🔄 Re-sync Schema</button>
   </div>
@@ -114,27 +114,27 @@
   <div class="cards-grid">
     <div class="card" onclick="window.location.href='06-ai-chat.html'">
       <div class="card-icon green">💬</div>
-      <h3>Teach AI (Chat)</h3>
+      <h3>AI Chat</h3>
       <p>Teach the AI about complex joins, business rules, filters, and report definitions through conversation.</p>
       <div class="card-stat">12 skills learned so far</div>
     </div>
 
     <div class="card" onclick="window.location.href='07-generate-sql.html'">
-      <div class="card-icon purple">⌨️</div>
-      <h3>Generate Validation SQL</h3>
+      <div class="card-icon purple">🛢️</div>
+      <h3>Generate SQL</h3>
       <p>Select a report, provide filter values, and generate production-grade SQL to validate Power BI data.</p>
       <div class="card-stat">2 reports configured</div>
     </div>
 
-    <div class="card">
+    <div class="card" onclick="window.location.href='15-skills-library.html'">
       <div class="card-icon blue">🔧</div>
       <h3>Skills Library</h3>
       <p>Browse, edit, and manage all learned skills — joins, filters, domain rules, and report definitions.</p>
       <div class="card-stat">12 joins · 4 domain rules · 2 reports</div>
     </div>
 
-    <div class="card">
-      <div class="card-icon orange">📊</div>
+    <div class="card" onclick="window.location.href='16-schema.html'">
+      <div class="card-icon orange">🔍</div>
       <h3>Schema Explorer</h3>
       <p>Browse tables, columns, relationships, and data samples from the cached schema.</p>
       <div class="card-stat">23 tables · 847 columns</div>

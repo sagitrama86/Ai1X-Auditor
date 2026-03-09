@@ -1,214 +1,516 @@
 # ============================================================
+# Dimension & Lookup Tables
+# Migrated to v1.0 template — 2026-03-09
+# Multi-document YAML — one table per document
+# ============================================================
+
+# ============================================================
 # Table: dimorganization
 # ============================================================
+version: 1.0
+
 table_name: dimorganization
 schema: dbo
+database: HEDIS_RDW
+business_name: Organization
 classification: dimension
 description: "Organization/client dimension. One row per health plan that reports HEDIS."
+
+domain: Quality Reporting
+subject_area: HEDIS
+business_purpose: "Maps organizationid to org display name. Used as primary slicer in all reports."
+pii_present: false
+tags: [hedis, dimension, organization]
+
 row_count_approx: 156
+
+table_intent:
+  ai_primary_usage: [lookup]
+  typical_filters: [organizationname]
+  typical_grouping: [organizationname]
+  query_warnings: []
+  join_priority_tables: [factqualityreport]
+  common_business_questions: ["Which health plans are reporting?"]
+
 grain:
   description: "One row per organizationid"
   columns: [organizationid]
+  composite_primary_key: [organizationid]
+  uniqueness_guarantee: true
+
 joins_with:
   - table: factqualityreport
     on: [organizationid]
     relationship: "1:many"
-problems_and_suggestions: []
+
 columns:
   organizationid:
+    business_name: Organization ID
+    description: "Unique organization identifier"
+    semantic_role: identifier
     data_type: INT
     nullable: false
     pk: true
-    fk: null
-    grain: "Unique organization identifier"
-    record_level_info: "Each org is a separate HEDIS-reporting health plan."
+    aggregatable: false
+    aggregation_behavior: non_additive
     same_in_other_tables:
       - {table: factqualityreport, column: organizationid}
       - {table: qualitycutpoints, column: organizationId}
+
   organizationname:
+    business_name: Organization Name
+    description: "Organization display name — primary slicer in all reports"
+    semantic_role: dimension
+    synonyms: [org name, client, health plan]
     data_type: VARCHAR(200)
     nullable: false
     pk: false
-    fk: null
-    grain: "Organization display name"
-    record_level_info: "Used as primary slicer in all reports."
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    high_cardinality: false
     same_in_other_tables:
       - {table: factqualityreport, column: organizationname, relationship: "Denormalized copy"}
+
+performance:
+  large_table: false
 
 ---
 # ============================================================
 # Table: dimproductcategory
 # ============================================================
+version: 1.0
+
 table_name: dimproductcategory
 schema: dbo
+database: HEDIS_RDW
+business_name: Product Category / Line of Business
 classification: dimension
-description: "Product category / Line of Business dimension. Maps ProductCategoryID to LOB names."
+description: "Maps ProductCategoryID to LOB names (Commercial, Medicaid, Medicare)."
+
+domain: Quality Reporting
+subject_area: HEDIS
+business_purpose: "Line of Business lookup for slicers and grouping."
+pii_present: false
+tags: [hedis, dimension, lob, product]
+
 row_count_approx: 12
+
+table_intent:
+  ai_primary_usage: [lookup]
+  typical_filters: [productcategoryname]
+  typical_grouping: [productcategoryname]
+  join_priority_tables: [factqualityreport]
+
 grain:
   description: "One row per ProductCategoryID"
   columns: [ProductCategoryID]
+  composite_primary_key: [ProductCategoryID]
+  uniqueness_guarantee: true
+
 joins_with:
   - table: factqualityreport
     on: [ProductCategoryID]
     relationship: "1:many"
+
 columns:
   ProductCategoryID:
+    business_name: Product Category ID
+    description: "LOB identifier"
+    semantic_role: identifier
     data_type: INT
     nullable: false
     pk: true
-    grain: "LOB identifier"
-    record_level_info: "Maps to Commercial, Medicaid, Medicare, etc."
+    aggregatable: false
+    aggregation_behavior: non_additive
     same_in_other_tables:
       - {table: factqualityreport, column: ProductCategoryID}
       - {table: qualitycutpoints, column: ProductCategoryId}
+
   productcategoryname:
+    business_name: Line of Business
+    description: "LOB display name"
+    semantic_role: dimension
+    synonyms: [LOB, line of business, product category]
     data_type: VARCHAR(100)
     nullable: false
     pk: false
-    grain: "LOB display name"
-    record_level_info: "Used as 'Line of Business' slicer. Values: Commercial, Medicaid, Medicare."
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    high_cardinality: false
+    example_values: [Commercial, Medicaid, Medicare]
+
+value_dictionary:
+  productcategoryname:
+    Commercial: "Commercial health plans"
+    Medicaid: "Medicaid plans"
+    Medicare: "Medicare plans"
+
+performance:
+  large_table: false
 
 ---
 # ============================================================
 # Table: dimprovidergroup
 # ============================================================
+version: 1.0
+
 table_name: dimprovidergroup
 schema: dbo
+database: HEDIS_RDW
+business_name: Provider Group
 classification: dimension
 description: "Provider group dimension. One row per provider group per domain."
+
+domain: Quality Reporting
+subject_area: Provider
+business_purpose: "Maps provider group IDs to display names."
+pii_present: false
+tags: [hedis, dimension, provider]
+
 row_count_approx: 3421
+
+table_intent:
+  ai_primary_usage: [lookup]
+  typical_filters: [providerGroupName]
+  typical_grouping: [providerGroupName]
+  join_priority_tables: [factqualityreport]
+
 grain:
   description: "One row per providerGroupID + domainid combination"
   columns: [providerGroupID, domainid]
+  composite_primary_key: [providerGroupID, domainid]
+  uniqueness_guarantee: true
+
 joins_with:
   - table: factqualityreport
     on: [providerGroupID, domainid]
     relationship: "1:many"
+
 columns:
   providerGroupID:
+    business_name: Provider Group ID
+    description: "Provider group identifier"
+    semantic_role: identifier
     data_type: INT
     nullable: false
     pk: true
-    grain: "Provider group identifier"
+    aggregatable: false
+    aggregation_behavior: non_additive
     same_in_other_tables:
       - {table: factqualityreport, column: providerGroupID}
+
   domainid:
+    business_name: Domain ID
+    description: "Domain/tenant identifier — part of composite PK"
+    semantic_role: identifier
     data_type: INT
     nullable: false
     pk: true
-    grain: "Domain/tenant identifier — part of composite PK"
+    aggregatable: false
+    aggregation_behavior: non_additive
     same_in_other_tables:
       - {table: factqualityreport, column: domainid}
+
   providerGroupName:
+    business_name: Provider Group Name
+    description: "Provider group display name"
+    semantic_role: dimension
+    synonyms: [provider group, group name]
     data_type: VARCHAR(200)
     nullable: false
     pk: false
-    grain: "Provider group display name"
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+
+performance:
+  large_table: false
 
 ---
 # ============================================================
 # Table: dimprovider_RDM
 # ============================================================
+version: 1.0
+
 table_name: dimprovider_RDM
 schema: dbo
+database: HEDIS_RDW
+business_name: Provider (RDM)
 classification: dimension
 description: "Provider Reference Data Management dimension. Individual provider details."
+
+domain: Quality Reporting
+subject_area: Provider
+business_purpose: "Individual provider details — NPI, specialty, name."
+pii_present: true
+tags: [hedis, dimension, provider, pii]
+
 row_count_approx: 45892
+
+table_intent:
+  ai_primary_usage: [lookup]
+  typical_filters: [specialty]
+  typical_grouping: [specialty, providerNPI]
+  query_warnings:
+    - "No single-column FK from factqualityreport — requires CONCAT join"
+    - "F.KeyToProvider = CONCAT(PR.domainid, '-', PR.sourcesystemuniqueidentifier)"
+  join_priority_tables: [factqualityreport]
+
 grain:
   description: "One row per domainid + sourcesystemuniqueidentifier"
   columns: [domainid, sourcesystemuniqueidentifier]
+  composite_primary_key: [domainid, sourcesystemuniqueidentifier]
+  uniqueness_guarantee: true
+
 joins_with:
   - table: factqualityreport
     on_expression: "F.KeyToProvider = CONCAT(PR.domainid, '-', PR.sourcesystemuniqueidentifier)"
     relationship: "1:many"
     note: "Concatenation-based join — not a standard FK"
+
 problems_and_suggestions:
   - problem: "No single-column FK from factqualityreport — requires CONCAT join"
     suggestion: "Add a computed column matching KeyToProvider format, or add KeyToProvider to this table"
+
 columns:
   domainid:
+    business_name: Domain ID
+    description: "Domain/tenant identifier — first part of CONCAT key"
+    semantic_role: identifier
     data_type: INT
     nullable: false
     pk: false
-    grain: "Domain/tenant identifier"
-    record_level_info: "First part of the CONCAT key: CONCAT(domainid, '-', ssui)"
+    aggregatable: false
+    aggregation_behavior: non_additive
+
   sourcesystemuniqueidentifier:
+    business_name: Source System ID
+    description: "Provider identifier from source system — second part of CONCAT key"
+    semantic_role: identifier
     data_type: VARCHAR(50)
     nullable: false
     pk: false
-    grain: "Provider identifier from source system"
-    record_level_info: "Second part of the CONCAT key"
+    aggregatable: false
+    aggregation_behavior: non_additive
+
   providerNPI:
+    business_name: Provider NPI
+    description: "National Provider Identifier"
+    semantic_role: identifier
+    synonyms: [NPI]
     data_type: VARCHAR(20)
     nullable: true
-    grain: "National Provider Identifier"
+    pk: false
+    pii: true
+    filterable: true
+    groupable: true
+
   specialty:
+    business_name: Specialty
+    description: "Provider specialty"
+    semantic_role: dimension
     data_type: VARCHAR(100)
     nullable: true
-    grain: "Provider specialty"
+    pk: false
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+
+column_relationships:
+  - column_a: domainid
+    column_b: sourcesystemuniqueidentifier
+    relationship_type: derived
+    rule: "CONCAT(domainid, '-', sourcesystemuniqueidentifier) = factqualityreport.KeyToProvider"
+
+performance:
+  large_table: false
 
 ---
 # ============================================================
 # Table: qualitycutpoints
 # ============================================================
+version: 1.0
+
 table_name: qualitycutpoints
 schema: dbo
+database: HEDIS_RDW
+business_name: Quality Cutpoints
 classification: lookup
 description: >
-  NCQA percentile cutpoints for quality measures. Defines the thresholds
-  for <25th, 25th, 50th, 75th, 90th percentile rankings. Published by
-  NCQA annually. One row per org + product + domain + year + measure.
+  NCQA percentile cutpoints for quality measures. Defines thresholds
+  for <25th, 25th, 50th, 75th, 90th percentile rankings. Published annually.
+
+domain: Quality Reporting
+subject_area: HEDIS
+business_purpose: "Percentile ranking of compliance rates against NCQA benchmarks."
+pii_present: false
+tags: [hedis, lookup, percentile, cutpoints]
+
 row_count_approx: 2340
+
+table_intent:
+  ai_primary_usage: [metric_calculation, lookup]
+  typical_filters: []
+  typical_grouping: []
+  query_warnings: ["LEFT JOIN — not all measures have cutpoints"]
+  join_priority_tables: [factqualityreport]
+  common_business_questions:
+    - "What percentile does this measure fall in?"
+    - "What are the cutpoint thresholds?"
+
 grain:
   description: "One row per organizationId + ProductCategoryId + domainid + MeasurementYear + SubMeasureCode"
   columns: [organizationId, ProductCategoryId, domainid, MeasurementYear, SubMeasureCode]
+  composite_primary_key: [organizationId, ProductCategoryId, domainid, MeasurementYear, SubMeasureCode]
+  uniqueness_guarantee: true
+
 joins_with:
   - table: factqualityreport
     join_type: LEFT
     on: [organizationId, ProductCategoryId, domainid, MeasurementYear, SubMeasureCode]
     relationship: "1:many"
     note: "LEFT JOIN — not all measures have cutpoints"
+
 columns:
-  organizationId: {data_type: INT, nullable: false, grain: "Organization"}
-  ProductCategoryId: {data_type: INT, nullable: false, grain: "LOB"}
-  domainid: {data_type: INT, nullable: false, grain: "Domain"}
-  MeasurementYear: {data_type: VARCHAR(4), nullable: false, grain: "Year"}
-  SubMeasureCode: {data_type: VARCHAR(20), nullable: false, grain: "Measure"}
+  organizationId:
+    business_name: Organization ID
+    semantic_role: identifier
+    data_type: INT
+    nullable: false
+    pk: true
+    aggregatable: false
+
+  ProductCategoryId:
+    business_name: Product Category ID
+    semantic_role: identifier
+    data_type: INT
+    nullable: false
+    pk: true
+    aggregatable: false
+
+  domainid:
+    business_name: Domain ID
+    semantic_role: identifier
+    data_type: INT
+    nullable: false
+    pk: true
+    aggregatable: false
+
+  MeasurementYear:
+    business_name: Measurement Year
+    semantic_role: date
+    data_type: VARCHAR(4)
+    nullable: false
+    pk: true
+    aggregatable: false
+
+  SubMeasureCode:
+    business_name: Sub-Measure Code
+    semantic_role: code
+    data_type: VARCHAR(20)
+    nullable: false
+    pk: true
+    aggregatable: false
+
   Cutpoint3:
+    business_name: 25th Percentile Cutpoint
+    description: "Compliance % below this = <25th percentile"
+    semantic_role: metric
     data_type: DECIMAL(5,2)
     nullable: true
-    grain: "25th percentile threshold"
-    record_level_info: "Compliance % below this = <25th percentile"
+    aggregatable: false
+    aggregation_behavior: non_additive
+    unit_of_measure: percentage
+
   Cutpoint5:
+    business_name: 50th Percentile Cutpoint
+    description: "Between Cutpoint3 and Cutpoint5 = 25th percentile"
+    semantic_role: metric
     data_type: DECIMAL(5,2)
     nullable: true
-    grain: "50th percentile threshold"
-    record_level_info: "Compliance % between Cutpoint3 and Cutpoint5 = 25th percentile"
+    aggregatable: false
+    aggregation_behavior: non_additive
+    unit_of_measure: percentage
+
   Cutpoint7:
+    business_name: 75th Percentile Cutpoint
+    description: "Between Cutpoint5 and Cutpoint7 = 50th percentile"
+    semantic_role: metric
     data_type: DECIMAL(5,2)
     nullable: true
-    grain: "75th percentile threshold"
+    aggregatable: false
+    aggregation_behavior: non_additive
+    unit_of_measure: percentage
+
   Cutpoint8:
+    business_name: 90th Percentile Cutpoint
+    description: "At or above this = 90th percentile"
+    semantic_role: metric
     data_type: DECIMAL(5,2)
     nullable: true
-    grain: "90th percentile threshold"
-    record_level_info: "Compliance % at or above this = 90th percentile"
+    aggregatable: false
+    aggregation_behavior: non_additive
+    unit_of_measure: percentage
+
+column_relationships:
+  - column_a: Cutpoint3
+    column_b: Cutpoint5
+    relationship_type: hierarchy
+    rule: "Cutpoint3 <= Cutpoint5 <= Cutpoint7 <= Cutpoint8"
+
+performance:
+  large_table: false
 
 ---
 # ============================================================
 # Table: keyvaluemapping
 # ============================================================
+version: 1.0
+
 table_name: keyvaluemapping
 schema: dbo
+database: HEDIS_RDW
+business_name: Key Value Mapping
 classification: lookup
 description: >
-  Lookup table for measure merging and key-value translations. Used when
-  NCQA merges or renames measures across years. Maps old measure codes
-  to new ones via the 'Measure_Merge' SubModuleName.
+  Lookup table for measure merging and key-value translations. Maps old
+  measure codes to new ones via 'Measure_Merge' SubModuleName.
+
+domain: Quality Reporting
+subject_area: HEDIS
+business_purpose: "Handles NCQA measure merges/renames across years."
+pii_present: false
+tags: [hedis, lookup, measure-merge]
+
 row_count_approx: 892
+
+table_intent:
+  ai_primary_usage: [lookup]
+  typical_filters: [SubModuleName]
+  typical_grouping: []
+  query_warnings:
+    - "LEFT JOIN — most measures are not merged"
+    - "Filter SubModuleName = 'Measure_Merge' for quality reports"
+  join_priority_tables: [factqualityreport]
+
 grain:
   description: "One row per KeyName + ADDITIONALKEY1 + ADDITIONALKEY2 + SubModuleName"
   columns: [KeyName, ADDITIONALKEY1, ADDITIONALKEY2, SubModuleName]
+  composite_primary_key: [KeyName, ADDITIONALKEY1, ADDITIONALKEY2, SubModuleName]
+  uniqueness_guarantee: true
+
 joins_with:
   - table: factqualityreport
     join_type: LEFT
@@ -218,29 +520,63 @@ joins_with:
       AND KVM.KeyName = F.submeasurecode
       AND KVM.SubModuleName = 'Measure_Merge'
     note: "LEFT JOIN — most measures are not merged"
+
 columns:
   KeyName:
+    business_name: Key Name
+    description: "Original measure code — matches factqualityreport.submeasurecode"
+    semantic_role: code
     data_type: VARCHAR(50)
     nullable: false
-    grain: "Original measure code"
-    record_level_info: "Matches factqualityreport.submeasurecode"
+    pk: true
+    aggregatable: false
+    same_in_other_tables:
+      - {table: factqualityreport, column: submeasurecode}
+
   KEYVALUE:
+    business_name: Key Value
+    description: "Mapped/merged measure code — replaces original in display when NOT NULL"
+    semantic_role: code
     data_type: VARCHAR(50)
     nullable: true
-    grain: "Mapped/merged measure code"
-    record_level_info: >
-      When not NULL, this replaces the original submeasurecode in display.
-      The measure name is then looked up from measuredetails using this value.
+    pk: false
+    aggregatable: false
+    business_rules: ["When NOT NULL, replaces submeasurecode in display"]
+
   ADDITIONALKEY1:
+    business_name: Additional Key 1
+    description: "Maps to keyvaluemeasureid"
+    semantic_role: lookup
     data_type: VARCHAR(50)
     nullable: true
-    grain: "Additional key 1 — maps to keyvaluemeasureid"
+    pk: true
+    aggregatable: false
+
   ADDITIONALKEY2:
+    business_name: Additional Key 2
+    description: "Maps to measurement year (first 4 chars)"
+    semantic_role: lookup
     data_type: VARCHAR(50)
     nullable: true
-    grain: "Additional key 2 — maps to measurement year (first 4 chars)"
+    pk: true
+    aggregatable: false
+
   SubModuleName:
+    business_name: Sub Module Name
+    description: "Module name — filter for 'Measure_Merge'"
+    semantic_role: code
     data_type: VARCHAR(50)
     nullable: true
-    grain: "Module name — filter for 'Measure_Merge'"
-    record_level_info: "Only rows with SubModuleName = 'Measure_Merge' are used in quality reports"
+    pk: true
+    aggregatable: false
+    categorical: true
+    business_rules: ["Only rows with SubModuleName = 'Measure_Merge' are used in quality reports"]
+
+value_dictionary:
+  SubModuleName:
+    Measure_Merge: "Quality report measure merging"
+
+performance:
+  large_table: false
+
+sample_rows: []

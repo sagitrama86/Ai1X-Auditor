@@ -55,13 +55,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="sidebar-nav">
     <div class="nav-section"><div class="nav-section-title">Main</div>
       <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
-      <div class="nav-item active">🗄️ Schema</div>
+      <div class="nav-item active">🔍 Schema Explorer</div>
       <div class="nav-item" onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
     <div class="nav-section"><div class="nav-section-title">Generate</div>
       <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
       <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
-      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
-      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">🛢️ Generate SQL</div>
+      <div class="nav-item" onclick="location='10-compare.html'">⚖️ Compare</div>
       <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
   </div>
   <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
@@ -122,11 +122,11 @@ async function showDetail(name){
   const cols=t.columns||{};
   const rows=Object.entries(cols).map(([name,c],i)=>`<tr>
     <td style="color:#484f58">${i+1}</td>
-    <td style="font-weight:500;${c.pk?'color:#d29922':''}">${name}</td>
+    <td style="font-weight:500;${c.pk?'color:#d29922':''}">${name}${c.business_name?' <span style="color:#484f58;font-weight:400;font-size:11px">('+c.business_name+')</span>':''}</td>
     <td><code style="font-size:11px;background:#0d1117;padding:2px 6px;border-radius:4px">${c.data_type||'—'}</code></td>
     <td>${c.nullable===false?'<span style="color:#f85149">✕</span>':'<span style="color:#3fb950">✓</span>'}</td>
     <td style="font-size:11px;color:${c.pk?'#d29922':c.fk?'#a371f7':'#484f58'}">${c.pk?'PK':c.fk||'—'}</td>
-    <td style="font-size:11px;color:#8b949e;max-width:300px">${(c.record_level_info||c.grain||'').substring(0,100)}</td>
+    <td style="font-size:11px;color:#8b949e;max-width:300px">${(c.description||c.record_level_info||c.grain||'').substring(0,120)}</td>
   </tr>`).join('');
   document.getElementById('detail-cols').innerHTML=`<table class="col-tbl"><thead><tr><th>#</th><th>Column</th><th>Type</th><th>Null</th><th>Key</th><th>Info</th></tr></thead><tbody>${rows}</tbody></table>`;
   document.getElementById('detail').scrollIntoView({behavior:'smooth'});

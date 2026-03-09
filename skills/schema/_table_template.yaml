@@ -1,0 +1,200 @@
+# ============================================================
+# AI1X Auditor — Table Schema Template
+# Use this as a starting point when creating new table YAMLs.
+# Fields marked (auto) can be populated during schema discovery.
+# Fields marked (sme) require subject matter expert input.
+# ============================================================
+
+version: 1.0
+
+# --- Table Identity ---
+table_name:                          # (auto) physical table name
+schema:                              # (auto) e.g. dbo
+database:                            # (auto) e.g. HEDIS_RDW
+business_name:                       # (sme) human-friendly name
+classification:                      # (auto) fact / dimension / bridge / lookup / snapshot
+description:                         # (sme) what this table contains
+
+# --- Ownership & Governance ---
+domain:                              # (sme) e.g. Quality Reporting, Claims
+subject_area:                        # (sme) e.g. HEDIS, Provider
+business_purpose:                    # (sme) why this table exists
+data_owner:                          # (sme) team or person
+data_steward:                        # (sme) team or person
+pii_present: false                   # (sme) contains PII?
+tags: []                             # (sme) searchable labels
+
+# --- Volume & Refresh ---
+row_count_approx:                    # (auto) estimated row count
+refresh_frequency:                   # (sme) daily / weekly / monthly / on-demand
+load_strategy:                       # (sme) append / merge / full_replace
+
+# --- AI Guidance ---
+table_intent:
+  ai_primary_usage: []               # (sme) reporting / analytics / metric_calculation / lookup
+  typical_filters: []                # (sme) columns commonly used in WHERE
+  typical_grouping: []               # (sme) columns commonly used in GROUP BY
+  query_warnings: []                 # (sme) e.g. "Always filter isRaw=0"
+  join_priority_tables: []           # (sme) most common tables to join with
+  common_business_questions: []      # (sme) questions this table answers
+
+# --- Grain ---
+grain:
+  description:                       # (sme) what one row represents
+  columns: []                        # (auto) columns that define the grain
+  composite_primary_key: []          # (auto) PK columns
+  natural_key: []                    # (sme) business key columns
+  surrogate_key:                     # (auto) surrogate key column if any
+  uniqueness_guarantee: false        # (sme) are rows guaranteed unique?
+  deduplication_logic:               # (sme) e.g. ROW_NUMBER OVER (PARTITION BY ...)
+
+# --- Joins ---
+joins_with: []
+  # - table:
+  #   join_type:                     # INNER / LEFT / RIGHT
+  #   on: []                         # simple equi-join columns
+  #   on_expression:                 # complex join expression
+  #   relationship:                  # 1:1 / many:1 / many:many
+  #   purpose:                       # why this join exists
+  #   note:                          # gotchas
+
+# --- Problems ---
+problems_and_suggestions: []
+  # - problem:
+  #   impact:
+  #   suggestion:
+
+# ============================================================
+# COLUMNS
+# ============================================================
+columns:
+
+  example_column:
+    # --- Identity ---
+    business_name:                   # (sme) display name
+    description:                     # (sme) what this column means
+    semantic_role:                   # (sme) identifier / dimension / measure / flag / date / lookup / metric / code / status
+    synonyms: []                     # (sme) alternate names users might say
+
+    # --- Physical ---
+    data_type:                       # (auto) e.g. INT, VARCHAR(200), BIT
+    nullable: true                   # (auto)
+    unique: false                    # (auto)
+    default_value:                   # (auto)
+
+    # --- Keys & Indexes ---
+    pk: false                        # (auto)
+    fk:                              # (auto) e.g. dimorganization.organizationid
+    index:                           # (auto) index type/name
+
+    # --- Aggregation ---
+    aggregatable: false              # (sme) can this be SUMmed/COUNTed?
+    default_aggregation:             # (sme) SUM / COUNT / AVG / MAX / MIN
+    aggregation_behavior:            # (sme) additive / semi_additive / non_additive
+
+    # --- Query Behavior ---
+    filterable: true                 # (sme) useful in WHERE?
+    sortable: true                   # (sme) useful in ORDER BY?
+    groupable: true                  # (sme) useful in GROUP BY?
+    categorical: false               # (sme) finite set of values?
+    high_cardinality: false          # (sme) many distinct values?
+
+    # --- Validation ---
+    constraints:                     # (auto) e.g. "Values: 0 or 1"
+    valid_range:                     # (sme) e.g. "0|100"
+    allowed_values: {}               # (sme) e.g. {0: "No", 1: "Yes"}
+    format:                          # (sme) e.g. "YYYY-MM-DD"
+    unit_of_measure:                 # (sme) e.g. percentage, count, dollars
+    business_rules: []               # (sme) e.g. "Must be <= Denominator"
+    data_quality_rules: []           # (sme) e.g. "NOT NULL when status=17"
+
+    # --- Compliance ---
+    pii: false                       # (sme)
+    sensitive: false                 # (sme)
+
+    # --- Lineage ---
+    lineage_source:                  # (sme) where this data comes from
+    transformation_logic:            # (sme) how it's computed
+    example_values: []               # (auto) sample values
+
+    # --- Relationships ---
+    same_in_other_tables: []         # (auto/sme)
+      # - table:
+      #   column:
+      #   relationship:
+    related_columns: []              # (sme)
+      # - column:
+      #   relationship_type:         # dependency / hierarchy / validation / derived
+      #   rule:
+
+# ============================================================
+# VALUE DICTIONARY
+# Maps code values to labels for coded columns
+# ============================================================
+value_dictionary: {}
+  # clinicalonlystatus:
+  #   16: DVDE - Denominator Valid Data Error
+  #   17: DE - Denominator Eligible
+  #   23: ECC - Exclusion Clinical Code
+  #   24: ERF - Exclusion Required Field
+
+# ============================================================
+# COLUMN RELATIONSHIPS
+# Cross-column rules not captured in individual column defs
+# ============================================================
+column_relationships: []
+  # - column_a:
+  #   column_b:
+  #   relationship_type:             # dependency / hierarchy / derived / validation
+  #   rule:
+
+# ============================================================
+# DERIVED COLUMNS
+# Computed columns used in reports but not in the physical table
+# ============================================================
+derived_columns: []
+  # - name:
+  #   description:
+  #   formula:
+  #   depends_on: []
+
+# ============================================================
+# TIME DIMENSIONS
+# ============================================================
+time_dimensions: {}
+  # MeasurementYear:
+  #   type: reporting_year
+  #   hierarchy: [year]
+
+# ============================================================
+# QUERY PATTERNS
+# Reusable SQL snippets for this table
+# ============================================================
+query_patterns: []
+  # - name:
+  #   description:
+  #   sql_template: |
+
+# ============================================================
+# PERFORMANCE
+# ============================================================
+performance:
+  large_table: false
+  recommended_filters: []
+  partition_strategy:
+    column:
+  clustering_columns: []
+
+# ============================================================
+# SECURITY
+# ============================================================
+security:
+  row_level_security:
+    enabled: false
+    column:
+  masking_rules: {}
+
+# ============================================================
+# SAMPLE ROWS
+# ============================================================
+sample_rows: []

@@ -99,13 +99,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="sidebar-nav">
     <div class="nav-section"><div class="nav-section-title">Main</div>
       <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
-      <div class="nav-item"onclick="location='16-schema.html'">🗄️ Schema</div>
+      <div class="nav-item"onclick="location='16-schema.html'">🔍 Schema Explorer</div>
       <div class="nav-item active">🔧 Skills Library</div></div>
     <div class="nav-section"><div class="nav-section-title">Generate</div>
       <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
       <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
-      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
-      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">🛢️ Generate SQL</div>
+      <div class="nav-item" onclick="location='10-compare.html'">⚖️ Compare</div>
       <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
   </div>
   <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW — 23 tables</div></div>
@@ -142,52 +142,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 <script>
-const SKILLS=[
-  // Schema
-  {id:'s1',cat:'schema',name:'factqualityreport',desc:'Main fact table — 62 columns, 4.5M rows. Contains quality report measures, performance data, and clinical status.',via:'auto_discovered',date:'Mar 1',tags:['fact','quality','4.5M rows'],yaml:'skill_type: schema\ntable: factqualityreport\ncolumns: 62\nrow_count: 4523891\nclassification: fact\nprimary_key: [factssui, SubmissionId]'},
-  {id:'s2',cat:'schema',name:'factQualityReport_Filters',desc:'Filter companion to factqualityreport — attribution model, provider assignments, product/plan details.',via:'auto_discovered',date:'Mar 1',tags:['fact','filters','attribution'],yaml:'skill_type: schema\ntable: factQualityReport_Filters\ncolumns: 38\nrow_count: 4523891\nclassification: fact'},
-  {id:'s3',cat:'schema',name:'measuredetails',desc:'Dimension table for HEDIS measures — codes, names, types, domains, categories, flags.',via:'auto_discovered',date:'Mar 1',tags:['dimension','measures','HEDIS'],yaml:'skill_type: schema\ntable: measuredetails\ncolumns: 24\nrow_count: 1247\nclassification: dimension'},
-  {id:'s4',cat:'schema',name:'dimorganization',desc:'Organization/client dimension — org ID, name, settings.',via:'auto_discovered',date:'Mar 1',tags:['dimension','organization'],yaml:'skill_type: schema\ntable: dimorganization\ncolumns: 12\nrow_count: 156'},
-  {id:'s5',cat:'schema',name:'dimprovidergroup',desc:'Provider group dimension — group ID, name, domain.',via:'auto_discovered',date:'Mar 1',tags:['dimension','provider'],yaml:'skill_type: schema\ntable: dimprovidergroup\ncolumns: 18\nrow_count: 3421'},
-  {id:'s6',cat:'schema',name:'dimprovider_RDM',desc:'Provider RDM dimension — provider details, NPI, specialty.',via:'auto_discovered',date:'Mar 1',tags:['dimension','provider','RDM'],yaml:'skill_type: schema\ntable: dimprovider_RDM\ncolumns: 22\nrow_count: 45892'},
-  {id:'s7',cat:'schema',name:'dimproductcategory',desc:'Product category dimension — LOB mapping.',via:'auto_discovered',date:'Mar 1',tags:['dimension','product','LOB'],yaml:'skill_type: schema\ntable: dimproductcategory\ncolumns: 8\nrow_count: 12'},
-  {id:'s8',cat:'schema',name:'keyvaluemapping',desc:'Lookup table for measure merging and key-value translations.',via:'auto_discovered',date:'Mar 1',tags:['lookup','mapping'],yaml:'skill_type: schema\ntable: keyvaluemapping\ncolumns: 9\nrow_count: 892'},
-  {id:'s9',cat:'schema',name:'qualitycutpoints',desc:'NCQA percentile cutpoints per org/product/measure/year.',via:'auto_discovered',date:'Mar 1',tags:['lookup','cutpoints','NCQA'],yaml:'skill_type: schema\ntable: qualitycutpoints\ncolumns: 11\nrow_count: 2340'},
-
-  // Joins
-  {id:'j1',cat:'joins',name:'factqualityreport ↔ factQualityReport_Filters',desc:'Composite key join on factssui + SubmissionId. 1:1 ratio verified.',via:'auto_discovered',date:'Mar 1',tags:['fact-to-fact','composite key'],yaml:'skill_type: join\nleft: factqualityreport\nright: factQualityReport_Filters\njoin_type: INNER\non:\n  - factssui = factssui\n  - SubmissionId = SubmissionId\nvalidation:\n  match_rate: 1.0\n  ratio: "1:1"'},
-  {id:'j2',cat:'joins',name:'factqualityreport ↔ dimorganization',desc:'Simple FK join on organizationid. Many:1.',via:'auto_discovered',date:'Mar 1',tags:['fact-to-dim','FK'],yaml:'skill_type: join\nleft: factqualityreport\nright: dimorganization\non: organizationid = organizationid\njoin_type: INNER'},
-  {id:'j3',cat:'joins',name:'factqualityreport ↔ measuredetails',desc:'Conditional OR join — uses keyvaluemeasureid when available, falls back to clinicalmeasureid.',via:'conversation',date:'Mar 1',tags:['conditional','OR join','measures'],yaml:'skill_type: join\nleft: factqualityreport\nright: measuredetails\njoin_type: INNER\non_expression: |\n  (F.keyvaluemeasureid IS NOT NULL\n   AND F.keyvaluemeasureid = M.measureid)\n  OR\n  (F.keyvaluemeasureid IS NULL\n   AND F.clinicalmeasureid = M.clinicalmeasureid)\nvalidation:\n  match_rate: 1.0\n  note: "Conditional join — taught via conversation"'},
-  {id:'j4',cat:'joins',name:'factqualityreport ↔ dimprovider_RDM',desc:'Concatenation-based join — KeyToProvider = CONCAT(domainid, "-", sourcesystemuniqueidentifier).',via:'conversation',date:'Mar 1',tags:['concatenation','composite','provider'],yaml:'skill_type: join\nleft: factqualityreport\nright: dimprovider_RDM\njoin_type: INNER\non_expression: |\n  F.KeyToProvider = CONCAT(\n    PR.domainid, "-",\n    PR.sourcesystemuniqueidentifier\n  )\nevidence:\n  sample_values:\n    KeyToProvider: ["1042-PAT00123"]\n    domainid: [1042]\n    ssui: ["PAT00123"]\n  match_rate: 1.0'},
-  {id:'j5',cat:'joins',name:'factqualityreport ↔ dimprovidergroup',desc:'Composite join on providerGroupID + domainid.',via:'auto_discovered',date:'Mar 1',tags:['fact-to-dim','composite'],yaml:'skill_type: join\non:\n  - providerGroupID = providerGroupID\n  - domainid = domainid'},
-  {id:'j6',cat:'joins',name:'factqualityreport ↔ dimproductcategory',desc:'Simple FK join on ProductCategoryID.',via:'auto_discovered',date:'Mar 1',tags:['fact-to-dim','FK'],yaml:'skill_type: join\non: ProductCategoryID = ProductCategoryID'},
-  {id:'j7',cat:'joins',name:'factqualityreport ↔ keyvaluemapping',desc:'LEFT JOIN for measure merging on year + measureid + submeasurecode.',via:'conversation',date:'Mar 1',tags:['LEFT JOIN','measure merge'],yaml:'skill_type: join\njoin_type: LEFT\non:\n  - KVM.ADDITIONALKEY2 = SUBSTRING(MeasurementYear,1,4)\n  - KVM.ADDITIONALKEY1 = KEYVALUEMEASUREID\n  - KVM.KeyName = submeasurecode\n  - SubModuleName = "Measure_Merge"'},
-  {id:'j8',cat:'joins',name:'factqualityreport ↔ qualitycutpoints',desc:'LEFT JOIN for NCQA percentile cutpoints on org + product + domain + year + measure.',via:'auto_discovered',date:'Mar 1',tags:['LEFT JOIN','cutpoints','NCQA'],yaml:'skill_type: join\njoin_type: LEFT\non:\n  - organizationId\n  - ProductCategoryId\n  - domainid\n  - MeasurementYear\n  - SubMeasureCode'},
-
-  // Domain
-  {id:'d1',cat:'domain',name:'HEDIS Clinical Status Codes',desc:'clinicalonlystatus: 16=DVDE, 17=DE, 23=ECC, 24=ERF. Determines which SSUI column to count.',via:'conversation',date:'Mar 1',tags:['HEDIS','clinical','global'],yaml:'skill_type: domain_rule\nscope: global\nrule:\n  source_column: clinicalonlystatus\n  mappings:\n    16: {label: DVDE, suffix: DVDE}\n    17: {label: DE, suffix: DE}\n    23: {label: ECC, suffix: ECC}\n    24: {label: ERF, suffix: ERF}\n  applies_to: [patient, visit, event]'},
-  {id:'d2',cat:'domain',name:'HEDIS Percentile Calculation',desc:'NCQA PCTL ranking using 4 cutpoints. 4-way branch on NCQAInvertedFlag × InverseFlag.',via:'conversation',date:'Mar 1',tags:['HEDIS','percentile','NCQA','cutpoints'],yaml:'skill_type: business_logic\nname: PCTL\nbranching:\n  numerator:\n    NCQAInvertedFlag=Y: NonCompliant\n    otherwise: Compliant\n  direction:\n    InverseFlag=N: normal\n    InverseFlag=Y: inverted\nbuckets:\n  - "<25th"\n  - "25th"\n  - "50th"\n  - "75th"\n  - "90th"'},
-  {id:'d3',cat:'domain',name:'HEDIS Measure Types',desc:'measuretype determines count entity: Visit→visitSSUI, Event→eventSSUI, Patient-Process→patientSSUI.',via:'conversation',date:'Mar 1',tags:['HEDIS','measure type'],yaml:'skill_type: domain_rule\nscope: global\nmeasure_types:\n  Visit: count visitSSUI\n  Event: count eventSSUI\n  Patient-Process: count patientSSUI'},
-
-  // Slicers
-  {id:'sl1',cat:'slicers',name:'Organization Name slicer',desc:'Maps to A.organizationname. Required. Uses COALESCE optional pattern.',via:'conversation',date:'Mar 1',tags:['measurelist','required'],yaml:'slicer_name: Organization Name\ncolumn: A.organizationname\nparameter: ":00OrganizationName"\nrequired: true'},
-  {id:'sl2',cat:'slicers',name:'Measurement Year slicer',desc:'Maps to A.MeasurementYear. Required.',via:'conversation',date:'Mar 1',tags:['measurelist','required'],yaml:'slicer_name: Measurement Year\ncolumn: A.MeasurementYear\nrequired: true'},
-  {id:'sl3',cat:'slicers',name:'Line of Business slicer',desc:'Maps to D.productcategoryname via dimproductcategory.',via:'conversation',date:'Mar 1',tags:['measurelist'],yaml:'slicer_name: Line of Business\ncolumn: D.productcategoryname\nrequired: false\ndefault: All'},
-
-  // Reports
-  {id:'r1',cat:'reports',name:'Quality Dashboard — MeasureList',desc:'16 fields, 11 slicers, 8 joins, 2 domain rules. Fully configured.',via:'conversation',date:'Mar 1',tags:['quality','measurelist','ready'],yaml:'report_name: Quality Dashboard - MeasureList\nbase_table: factqualityreport\nfields: 16\nslicers: 11\nuses_joins: 8\nuses_domain_rules: 2\nstatus: ready'},
-  {id:'r2',cat:'reports',name:'Quality Dashboard — Provider Detail',desc:'14 fields, 8 slicers. Draft — 5 fields missing.',via:'conversation',date:'Mar 1',tags:['quality','provider','draft'],yaml:'report_name: Quality Dashboard - Provider Detail\nstatus: draft\nfields: 9/14\nslicers: 8'},
-
-  // Validations
-  {id:'v1',cat:'validations',name:'Compliant ≤ Denominator',desc:'Cross-field: Compliant must not exceed Denominator. Severity: error.',via:'conversation',date:'Mar 1',tags:['cross-field','error'],yaml:'type: cross_field\nfield: Compliant\noperator: "<="\ncompare: Denominator\nseverity: error'},
-  {id:'v2',cat:'validations',name:'MeasureList vs VBC — Eligible Population',desc:'Cross-report: Compliant in MeasureList = Eligible Population in VBC.',via:'conversation',date:'Mar 1',tags:['cross-report','VBC'],yaml:'type: cross_report\nsource:\n  report: MeasureList\n  column: Compliant\ntarget:\n  report: VBC\n  column: Eligible Population\nseverity: error'},
-  {id:'v3',cat:'validations',name:'MeasureList vs VBC — Numerator by Measure',desc:'Cross-report: SUM(Compliant) per Measure in MeasureList = Numerator in VBC.',via:'conversation',date:'Mar 1',tags:['cross-report','VBC','aggregate'],yaml:'type: cross_report\nsource:\n  report: MeasureList\n  expression: "SUM(Compliant)"\n  group_by: [Measure]\ntarget:\n  report: VBC\n  column: Numerator\njoin_on: Measure\nseverity: error'},
-
-  // Metadata definitions
-  {id:'m1',cat:'metadata',name:'allow_null',desc:'Boolean checkbox — whether a field can have NULL values in output.',via:'conversation',date:'Mar 1',tags:['boolean','field-level'],yaml:'type: boolean\ninput_control: checkbox\ndefault: true\nscope: field'},
-  {id:'m2',cat:'metadata',name:'validation_rule',desc:'Compound metadata — check type (range/enum/regex/length) + severity + rule params.',via:'conversation',date:'Mar 1',tags:['compound','validation'],yaml:'type: object\nproperties:\n  check_type: enum [none,range,enum,regex,length]\n  severity: enum [error,warning]\n  rule: varies by check_type'}
-];
-
+const API='http://localhost:8000';
 const CATS=[
   {key:'all',icon:'📦',label:'All Skills'},
   {key:'schema',icon:'🗄️',label:'Schema'},
@@ -195,21 +150,31 @@ const CATS=[
   {key:'domain',icon:'📐',label:'Domain Rules'},
   {key:'slicers',icon:'🎛️',label:'Slicers'},
   {key:'reports',icon:'📄',label:'Reports'},
-  {key:'validations',icon:'✅',label:'Validations'},
-  {key:'metadata',icon:'🏷️',label:'Metadata Defs'}
+  {key:'validations',icon:'✅',label:'Validations'}
 ];
 
+let SKILLS=[];
 let activeCat='all';
 
+async function init(){
+  try{
+    const resp=await fetch(API+'/api/skills');
+    const data=await resp.json();
+    SKILLS=data.skills;
+  }catch(e){
+    document.getElementById('skill-list').innerHTML='<div style="text-align:center;padding:40px;color:#f85149">⚠ Cannot connect to backend. Start the server: <code>py -m uvicorn main:app --port 8000</code></div>';
+    return;
+  }
+  render();
+}
+
 function render(){
-  // Stats
   const sb=document.getElementById('stats-bar');
   sb.innerHTML=CATS.map(c=>{
     const cnt=c.key==='all'?SKILLS.length:SKILLS.filter(s=>s.cat===c.key).length;
     return `<div class="stat-card ${activeCat===c.key?'active':''}" onclick="activeCat='${c.key}';render()"><div class="stat-val" style="color:${activeCat===c.key?'#58a6ff':'#c9d1d9'}">${cnt}</div><div class="stat-label">${c.label}</div></div>`;
   }).join('');
 
-  // Tree
   const tree=document.getElementById('tree');
   tree.innerHTML=CATS.map(c=>{
     const cnt=c.key==='all'?SKILLS.length:SKILLS.filter(s=>s.cat===c.key).length;
@@ -224,24 +189,20 @@ function filterSkills(){
   const list=document.getElementById('skill-list');
   const filtered=SKILLS.filter(s=>{
     if(activeCat!=='all'&&s.cat!==activeCat)return false;
-    if(q&&!s.name.toLowerCase().includes(q)&&!s.desc.toLowerCase().includes(q)&&!s.tags.some(t=>t.toLowerCase().includes(q)))return false;
+    if(q&&!s.name.toLowerCase().includes(q)&&!s.desc.toLowerCase().includes(q)&&!(s.tags||[]).some(t=>(t||'').toLowerCase().includes(q)))return false;
     return true;
   });
 
-  const typeClass={schema:'schema',joins:'join',domain:'domain',slicers:'slicer',reports:'report',validations:'validation',metadata:'metadata'};
+  const typeClass={schema:'schema',joins:'join',domain:'domain',slicers:'slicer',reports:'report',validations:'validation'};
 
   list.innerHTML=filtered.length?filtered.map(s=>`
     <div class="skill-card" onclick="showDetail('${s.id}')">
       <div class="skill-header">
         <span class="skill-name">${s.name}</span>
-        <span class="skill-type ${typeClass[s.cat]}">${s.cat}</span>
+        <span class="skill-type ${typeClass[s.cat]||''}">${s.cat}</span>
       </div>
       <div class="skill-desc">${s.desc}</div>
-      <div class="skill-meta">
-        <span>${s.via==='auto_discovered'?'🤖 Auto-discovered':'💬 Via conversation'}</span>
-        <span>📅 ${s.date}</span>
-      </div>
-      <div class="skill-tags">${s.tags.map(t=>'<span class="skill-tag">'+t+'</span>').join('')}</div>
+      <div class="skill-tags">${(s.tags||[]).filter(t=>t).map(t=>'<span class="skill-tag">'+t+'</span>').join('')}</div>
     </div>
   `).join(''):'<div style="text-align:center;padding:40px;color:#484f58">No skills match your search.</div>';
 }
@@ -251,28 +212,32 @@ function showDetail(id){
   const dp=document.getElementById('detail-panel');
   dp.classList.add('show');
   document.getElementById('dp-title').textContent=s.name;
-  const typeClass={schema:'schema',joins:'join',domain:'domain',slicers:'slicer',reports:'report',validations:'validation',metadata:'metadata'};
+  const typeClass={schema:'schema',joins:'join',domain:'domain',slicers:'slicer',reports:'report',validations:'validation'};
+
+  let detailRows='';
+  if(s.detail){
+    for(const[k,v]of Object.entries(s.detail)){
+      const val=Array.isArray(v)?v.join(', '):typeof v==='object'?JSON.stringify(v,null,2):String(v||'—');
+      detailRows+=`<div class="mr"><span class="ml">${k}</span><span class="mv">${val.length>100?'<pre style="text-align:left;white-space:pre-wrap;font-size:11px">'+val+'</pre>':val}</span></div>`;
+    }
+  }
+
   document.getElementById('dp-body').innerHTML=`
     <div class="ms"><div class="ms-title">Properties</div>
-      <div class="mr"><span class="ml">Type</span><span class="mv"><span class="skill-type ${typeClass[s.cat]}" style="font-size:12px">${s.cat}</span></span></div>
-      <div class="mr"><span class="ml">Created Via</span><span class="mv">${s.via==='auto_discovered'?'🤖 Auto-discovered':'💬 Conversation'}</span></div>
-      <div class="mr"><span class="ml">Created</span><span class="mv">${s.date}, 2026</span></div>
-      <div class="mr"><span class="ml">Tags</span><span class="mv">${s.tags.map(t=>'<span class="tag b">'+t+'</span>').join(' ')}</span></div>
+      <div class="mr"><span class="ml">Type</span><span class="mv"><span class="skill-type ${typeClass[s.cat]||''}" style="font-size:12px">${s.cat}</span></span></div>
+      <div class="mr"><span class="ml">Tags</span><span class="mv">${(s.tags||[]).filter(t=>t).map(t=>'<span class="tag b">'+t+'</span>').join(' ')}</span></div>
     </div>
     <div class="ms"><div class="ms-title">Description</div>
       <div style="font-size:13px;color:#c9d1d9;line-height:1.6">${s.desc}</div>
     </div>
-    <div class="ms"><div class="ms-title">YAML Definition</div>
-      <div class="yaml-block">${s.yaml}</div>
-    </div>
+    <div class="ms"><div class="ms-title">Details</div>${detailRows}</div>
     <div class="ms" style="display:flex;gap:8px;padding:14px 20px">
       <button class="btn btn-outline" style="font-size:12px" onclick="location='06-ai-chat.html'">💬 Edit in Chat</button>
-      <button class="btn btn-outline" style="font-size:12px;color:#f85149;border-color:#f8514944">🗑️ Delete</button>
     </div>`;
   dp.scrollIntoView({behavior:'smooth'});
 }
 
-render();
+init();
 </script>
 </body>
 </html>

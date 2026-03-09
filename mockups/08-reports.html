@@ -51,13 +51,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="sidebar-nav">
     <div class="nav-section"><div class="nav-section-title">Main</div>
       <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
-      <div class="nav-item" onclick="location='16-schema.html'">🗄️ Schema</div>
+      <div class="nav-item" onclick="location='16-schema.html'">🔍 Schema Explorer</div>
       <div class="nav-item" onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
     <div class="nav-section"><div class="nav-section-title">Generate</div>
       <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
       <div class="nav-item active">📄 Reports</div>
-      <div class="nav-item" onclick="location='07-generate-sql.html'">⌨️ SQL Output</div>
-      <div class="nav-item" onclick="location='10-compare.html'">🔍 Compare</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">🛢️ Generate SQL</div>
+      <div class="nav-item" onclick="location='10-compare.html'">⚖️ Compare</div>
       <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
   </div>
   <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
@@ -80,13 +80,13 @@ async function init(){
       <div class="rc-header"><div class="rc-title">${r.report_name}</div><div class="rc-status">✓ ${r.status||'ready'}</div></div>
       <div class="rc-desc">${r.report_id} · ${r.fields_count} fields · ${r.slicers_count} slicers</div>
       <div class="rc-stats">
-        <div class="rc-stat"><div class="rc-stat-val">${r.fields_count}</div><div class="rc-stat-label">Fields</div></div>
-        <div class="rc-stat"><div class="rc-stat-val">${r.slicers_count}</div><div class="rc-stat-label">Slicers</div></div>
+        <a href="09-report-fields.html?id=${r.report_id}" target="_blank" class="rc-stat" style="text-decoration:none;position:relative;display:block"><svg style="position:absolute;top:6px;right:6px;width:12px;height:12px" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg><div class="rc-stat-val">${r.fields_count}</div><div class="rc-stat-label">Fields</div></a>
+        <a href="13-report-slicers.html?id=${r.report_id}" target="_blank" class="rc-stat" style="text-decoration:none;position:relative;display:block"><svg style="position:absolute;top:6px;right:6px;width:12px;height:12px" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg><div class="rc-stat-val">${r.slicers_count}</div><div class="rc-stat-label">Slicers</div></a>
         <div class="rc-stat"><div class="rc-stat-val">8</div><div class="rc-stat-label">Validations</div></div>
       </div>
       <div class="rc-actions">
         <button class="rc-btn gen" onclick="location='07-generate-sql.html'">⚡ Generate SQL</button>
-        <button class="rc-btn sec" onclick="location='10-compare.html'">🔍 Compare</button>
+        <button class="rc-btn sec" onclick="location='10-compare.html'">⚖️ Compare</button>
         <button class="rc-btn sec" onclick="location='06-ai-chat.html'">💬 Edit</button>
       </div>
     </div>`;

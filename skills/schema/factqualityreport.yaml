@@ -1,42 +1,81 @@
 # ============================================================
 # Table: factqualityreport
-# Auto-discovered + SME-enhanced
-# Last updated: 2026-03-03
+# Migrated to v1.0 template — 2026-03-09
 # ============================================================
 
+version: 1.0
+
+# --- Table Identity ---
 table_name: factqualityreport
 schema: dbo
+database: HEDIS_RDW
+business_name: Quality Report Fact
 classification: fact
-
 description: >
   Primary fact table for HEDIS quality reporting. Contains one row per member
-  per measure per submission per clinical status. This is the central table
-  that all quality reports are built from. Stores performance metrics
+  per measure per submission per clinical status. Stores performance metrics
   (compliant/non-compliant), exclusion statuses, and clinical processing
   outcomes for each member-measure combination.
 
-row_count_approx: 4523891
+# --- Ownership & Governance ---
+domain: Quality Reporting
+subject_area: HEDIS
+business_purpose: >
+  Central table for all quality reports — compliance rates, percentile rankings,
+  gap-to-target, and clinical status counts are all derived from this table.
+data_owner:
+data_steward:
+pii_present: false
+tags: [hedis, quality, compliance, fact]
 
+# --- Volume & Refresh ---
+row_count_approx: 4523891
+refresh_frequency:
+load_strategy:
+
+# --- AI Guidance ---
+table_intent:
+  ai_primary_usage: [reporting, metric_calculation, analytics]
+  typical_filters: [isRaw, isUtilization, MeasurementYear, organizationid]
+  typical_grouping: [submeasurecode, NCQA_Submission_ID_Name, organizationname]
+  query_warnings:
+    - "Always filter isRaw=0 and isUtilization=0"
+    - "Always deduplicate with ROW_NUMBER OVER (PARTITION BY factssui, SubmissionId)"
+    - "Join to measuredetails is conditional — keyvaluemeasureid takes precedence over clinicalmeasureid"
+  join_priority_tables: [factQualityReport_Filters, measuredetails, dimorganization, qualitycutpoints]
+  common_business_questions:
+    - "What is the compliance rate for a given measure?"
+    - "How many members are in the denominator?"
+    - "What percentile does this measure fall in?"
+    - "How many more compliant members needed to reach 50th percentile?"
+
+# --- Grain ---
 grain:
   description: >
     One row per unique combination of factssui + SubmissionId.
-    factssui itself encodes patient + measure + clinical status.
+    factssui encodes patient + measure + clinical status.
     A single patient can appear multiple times for different measures,
-    different submissions, and different clinical statuses.
+    submissions, and clinical statuses.
   columns: [factssui, SubmissionId]
+  composite_primary_key: [factssui, SubmissionId]
+  natural_key: []
+  surrogate_key: factssui
+  uniqueness_guarantee: false
+  deduplication_logic: "ROW_NUMBER() OVER (PARTITION BY factssui, SubmissionId ORDER BY factssui, SubmissionId ASC) = 1"
 
+# --- Joins ---
 joins_with:
   - table: factQualityReport_Filters
     join_type: INNER
     on: [factssui, SubmissionId]
-    relationship: "1:1 — every row in factqualityreport has exactly one matching row in Filters"
-    purpose: "Filters table holds attribution model details, provider assignments, product/plan info"
+    relationship: "1:1"
+    purpose: "Attribution model details, provider assignments, product/plan info"
 
   - table: dimorganization
     join_type: INNER
     on: [organizationid]
     relationship: "many:1"
-    purpose: "Get organization/client name and settings"
+    purpose: "Organization/client name and settings"
 
   - table: measuredetails
     join_type: INNER
@@ -44,34 +83,34 @@ joins_with:
       (F.keyvaluemeasureid IS NOT NULL AND F.keyvaluemeasureid = M.measureid)
       OR (F.keyvaluemeasureid IS NULL AND F.clinicalmeasureid = M.clinicalmeasureid)
     relationship: "many:1"
-    purpose: "Get measure name, type, domain, category, flags"
-    note: "Conditional join — uses keyvaluemeasureid when available, falls back to clinicalmeasureid"
+    purpose: "Measure name, type, domain, category, flags"
+    note: "Conditional join — keyvaluemeasureid when available, falls back to clinicalmeasureid"
 
   - table: dimprovidergroup
     join_type: INNER
     on: [providerGroupID, domainid]
     relationship: "many:1"
-    purpose: "Get provider group name"
+    purpose: "Provider group name"
 
   - table: dimprovider_RDM
     join_type: INNER
     on_expression: "F.KeyToProvider = CONCAT(PR.domainid, '-', PR.sourcesystemuniqueidentifier)"
     relationship: "many:1"
-    purpose: "Get provider details — NPI, specialty, name"
-    note: "Concatenation-based join. KeyToProvider is a composite string."
+    purpose: "Provider details — NPI, specialty, name"
+    note: "Concatenation-based join"
 
   - table: dimproductcategory
     join_type: INNER
     on: [ProductCategoryID]
     relationship: "many:1"
-    purpose: "Get Line of Business name (Commercial, Medicaid, Medicare)"
+    purpose: "Line of Business name"
 
   - table: qualitycutpoints
     join_type: LEFT
     on: [organizationId, ProductCategoryId, domainid, MeasurementYear, SubMeasureCode]
     relationship: "many:1"
-    purpose: "Get NCQA percentile cutpoints for ranking"
-    note: "LEFT JOIN because not all measure+org combinations have cutpoints"
+    purpose: "NCQA percentile cutpoints"
+    note: "LEFT JOIN — not all measure+org combinations have cutpoints"
 
   - table: keyvaluemapping
     join_type: LEFT
@@ -81,461 +120,595 @@ joins_with:
       AND KVM.KeyName = F.submeasurecode
       AND KVM.SubModuleName = 'Measure_Merge'
     relationship: "many:0..1"
-    purpose: "Measure merging — maps old measure codes to new ones"
-    note: "LEFT JOIN because most measures are not merged"
+    purpose: "Measure merging — old codes to new"
+    note: "LEFT JOIN — most measures are not merged"
 
+# --- Problems ---
 problems_and_suggestions:
-  - problem: "KeyToProvider is a concatenated composite key (domainid + '-' + ssui) instead of a proper FK"
-    impact: "Cannot use standard FK join; requires CONCAT in join condition; no referential integrity enforced"
+  - problem: "KeyToProvider is a concatenated composite key instead of a proper FK"
+    impact: "Cannot use standard FK join; requires CONCAT; no referential integrity"
     suggestion: "Add a proper FK column or create a computed column with an index"
 
   - problem: "clinicalonlystatus uses magic numbers (16, 17, 23, 24) instead of a lookup table"
-    impact: "Business logic is encoded in application code, not in the database"
+    impact: "Business logic encoded in application code, not in the database"
     suggestion: "Create a dimclinicalstatus lookup table"
 
   - problem: "Deduplication required via ROW_NUMBER — indicates potential duplicate rows"
-    impact: "Every query must include ROW_NUMBER PARTITION BY factssui, SubmissionId to avoid double-counting"
-    suggestion: "Investigate root cause of duplicates; add unique constraint if possible"
+    impact: "Every query must include ROW_NUMBER to avoid double-counting"
+    suggestion: "Investigate root cause; add unique constraint if possible"
 
-  - problem: "organizationname is denormalized (exists in both fact table and dimorganization)"
-    impact: "Risk of inconsistency between fact and dimension"
-    suggestion: "Remove from fact table; always join to dimorganization for org name"
+  - problem: "organizationname is denormalized (exists in both fact and dimorganization)"
+    impact: "Risk of inconsistency"
+    suggestion: "Remove from fact table; always join to dimorganization"
 
 # ============================================================
 # COLUMNS
 # ============================================================
 columns:
 
-  # --- Primary Keys ---
   factssui:
+    business_name: Fact SSUI
+    description: "Surrogate key — uniquely identifies a member-measure-clinicalstatus combination within a submission"
+    semantic_role: identifier
+    synonyms: []
     data_type: BIGINT
     nullable: false
+    unique: false
+    default_value:
     pk: true
-    fk: null
-    constraints: "Part of composite PK with SubmissionId"
+    fk:
     index: "Clustered index on (factssui, SubmissionId)"
-    grain: "Encodes a unique member + measure + clinical status combination"
-    record_level_info: >
-      Surrogate key generated by the ETL process. Uniquely identifies a
-      member-measure-clinicalstatus combination within a submission.
-      Same factssui appears in factQualityReport_Filters with 1:1 mapping.
+    aggregatable: false
+    default_aggregation:
+    aggregation_behavior: non_additive
+    filterable: false
+    sortable: false
+    groupable: true
+    categorical: false
+    high_cardinality: true
+    constraints: "Part of composite PK with SubmissionId"
+    valid_range:
+    allowed_values: {}
+    format:
+    unit_of_measure:
+    business_rules: []
+    data_quality_rules: []
+    pii: false
+    sensitive: false
+    lineage_source: "ETL-generated surrogate key"
+    transformation_logic:
+    example_values: []
     same_in_other_tables:
-      - table: factQualityReport_Filters
-        column: factssui
-        relationship: "1:1 join key"
+      - {table: factQualityReport_Filters, column: factssui, relationship: "1:1 join key"}
+    related_columns: []
 
   SubmissionId:
+    business_name: Submission ID
+    description: "Identifies which NCQA submission this row belongs to"
+    semantic_role: identifier
+    synonyms: [submission]
     data_type: INT
     nullable: false
+    unique: false
     pk: true
-    fk: null
-    constraints: "Part of composite PK with factssui"
+    fk:
     index: "Clustered index on (factssui, SubmissionId)"
-    grain: "Identifies which NCQA submission this row belongs to"
-    record_level_info: >
-      A client can have multiple submissions (e.g., Submission 1, Submission 2).
-      Each submission is a separate data submission to NCQA.
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    high_cardinality: false
+    constraints: "Part of composite PK with factssui"
     same_in_other_tables:
-      - table: factQualityReport_Filters
-        column: SubmissionId
-        relationship: "1:1 join key"
+      - {table: factQualityReport_Filters, column: SubmissionId, relationship: "1:1 join key"}
 
-  # --- Organization ---
   organizationid:
+    business_name: Organization ID
+    description: "Identifies the client/organization (health plan)"
+    semantic_role: lookup
+    synonyms: [org id, client id]
     data_type: INT
     nullable: false
     pk: false
     fk: "dimorganization.organizationid"
-    constraints: null
     index: "Non-clustered index"
-    grain: "Identifies the client/organization"
-    record_level_info: >
-      Each organization is a separate HEDIS-reporting entity (health plan).
-      All rows for one org share the same organizationid.
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: false
+    groupable: true
+    categorical: true
+    high_cardinality: false
     same_in_other_tables:
-      - table: dimorganization
-        column: organizationid
-        relationship: "PK in dimorganization"
-      - table: qualitycutpoints
-        column: organizationId
-        relationship: "Part of composite key in cutpoints"
+      - {table: dimorganization, column: organizationid, relationship: "PK in dimorganization"}
+      - {table: qualitycutpoints, column: organizationId, relationship: "Part of composite key"}
 
   organizationname:
+    business_name: Organization Name
+    description: "Denormalized org name — same as dimorganization.organizationname"
+    semantic_role: dimension
+    synonyms: [org name, client name, health plan]
     data_type: VARCHAR(200)
     nullable: false
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Denormalized org name — same as dimorganization.organizationname"
-    record_level_info: >
-      Denormalized for query convenience. Should always match
-      dimorganization.organizationname for the same organizationid.
-      Used as a slicer in Power BI reports.
+    fk:
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    high_cardinality: false
+    business_rules: ["Should always match dimorganization.organizationname"]
     same_in_other_tables:
-      - table: dimorganization
-        column: organizationname
-        relationship: "Denormalized copy"
+      - {table: dimorganization, column: organizationname, relationship: "Denormalized copy"}
 
-  # --- Measure Identification ---
   clinicalmeasureid:
+    business_name: Clinical Measure ID
+    description: "Fallback join key to measuredetails when keyvaluemeasureid is NULL"
+    semantic_role: lookup
     data_type: INT
     nullable: true
     pk: false
     fk: "measuredetails.clinicalmeasureid (conditional)"
-    constraints: null
     index: "Non-clustered index"
-    grain: "Identifies the clinical measure"
-    record_level_info: >
-      Used as fallback join key to measuredetails when keyvaluemeasureid is NULL.
-      When keyvaluemeasureid IS NOT NULL, that takes precedence.
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: false
+    groupable: false
     same_in_other_tables:
-      - table: measuredetails
-        column: clinicalmeasureid
-        relationship: "Conditional FK — used when keyvaluemeasureid is NULL"
+      - {table: measuredetails, column: clinicalmeasureid, relationship: "Conditional FK — fallback"}
 
   keyvaluemeasureid:
+    business_name: Key Value Measure ID
+    description: "Primary join key to measuredetails. When NOT NULL, takes precedence over clinicalmeasureid"
+    semantic_role: lookup
     data_type: INT
     nullable: true
     pk: false
     fk: "measuredetails.measureid (conditional)"
-    constraints: null
     index: "Non-clustered index"
-    grain: "Identifies the measure via key-value mapping"
-    record_level_info: >
-      Primary join key to measuredetails. When NOT NULL, join on
-      keyvaluemeasureid = measuredetails.measureid. When NULL,
-      fall back to clinicalmeasureid. ~86% of rows have this populated.
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: false
+    groupable: false
+    business_rules: ["~86% of rows have this populated"]
     same_in_other_tables:
-      - table: measuredetails
-        column: measureid
-        relationship: "Conditional FK — primary path"
+      - {table: measuredetails, column: measureid, relationship: "Conditional FK — primary path"}
 
   submeasurecode:
+    business_name: Sub-Measure Code
+    description: "HEDIS sub-measure code (e.g., AWC-01, CBP-01)"
+    semantic_role: code
+    synonyms: [measure code, measure]
     data_type: VARCHAR(20)
     nullable: false
     pk: false
-    fk: null
-    constraints: null
     index: "Non-clustered index"
-    grain: "HEDIS sub-measure code (e.g., AWC-01, CBP-01)"
-    record_level_info: >
-      The specific HEDIS sub-measure this row is for. Format: XXX-NN
-      where XXX is the measure code and NN is the sub-measure number.
-      Used as a slicer and in GROUP BY for most reports.
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    high_cardinality: false
+    format: "XXX-NN"
     same_in_other_tables:
-      - table: measuredetails
-        column: submeasurecode
-        relationship: "Matches for measure lookup"
-      - table: qualitycutpoints
-        column: SubMeasureCode
-        relationship: "Used in cutpoint lookup"
+      - {table: measuredetails, column: submeasurecode}
+      - {table: qualitycutpoints, column: SubMeasureCode}
 
-  # --- Performance Metrics ---
   Act_Performance_Met:
+    business_name: Compliant
+    description: "1 = member met performance criteria (compliant), 0 = did not"
+    semantic_role: measure
+    synonyms: [compliant, numerator, performance met]
     data_type: INT
     nullable: false
     pk: false
-    fk: null
+    aggregatable: true
+    default_aggregation: SUM
+    aggregation_behavior: additive
+    filterable: false
+    sortable: false
+    groupable: false
+    categorical: false
     constraints: "Values: 0 or 1"
-    index: null
-    grain: "1 = member met performance criteria (compliant), 0 = did not"
-    record_level_info: >
-      Binary flag. SUM across rows gives total compliant count.
-      This is the NUMERATOR for non-inverted measures.
-      For inverted measures (NCQAInvertedFlag='Y'), Act_Performance_Not_Met
-      is used as numerator instead.
-      HEDIS rule: Act_Performance_Met + Act_Performance_Not_Met = 1
-      for every denominator-eligible row (clinicalonlystatus=17).
-    same_in_other_tables: null
+    valid_range: "0|1"
+    allowed_values: {0: "Not Met", 1: "Met"}
+    unit_of_measure: count
+    business_rules:
+      - "SUM gives total compliant count"
+      - "Numerator for non-inverted measures"
+      - "For inverted measures (NCQAInvertedFlag='Y'), use Act_Performance_Not_Met instead"
+      - "Act_Performance_Met + Act_Performance_Not_Met = 1 for every DE row"
+    related_columns:
+      - {column: Act_Performance_Not_Met, relationship_type: validation, rule: "Met + Not_Met = 1 for DE rows"}
 
   Act_Performance_Not_Met:
+    business_name: Non Compliant
+    description: "1 = member did NOT meet criteria (non-compliant), 0 = met"
+    semantic_role: measure
+    synonyms: [non compliant, non-compliant]
     data_type: INT
     nullable: false
     pk: false
-    fk: null
+    aggregatable: true
+    default_aggregation: SUM
+    aggregation_behavior: additive
     constraints: "Values: 0 or 1"
-    index: null
-    grain: "1 = member did NOT meet criteria (non-compliant), 0 = met"
-    record_level_info: >
-      Binary flag. SUM gives total non-compliant count.
-      This is the NUMERATOR for inverted measures (NCQAInvertedFlag='Y').
-      HEDIS rule: Always the inverse of Act_Performance_Met for DE rows.
-    same_in_other_tables: null
+    valid_range: "0|1"
+    allowed_values: {0: "Met", 1: "Not Met"}
+    unit_of_measure: count
+    business_rules:
+      - "SUM gives total non-compliant count"
+      - "Numerator for inverted measures (NCQAInvertedFlag='Y')"
+    related_columns:
+      - {column: Act_Performance_Met, relationship_type: validation, rule: "Met + Not_Met = 1 for DE rows"}
 
   reportingExclusionStatus:
+    business_name: Required Exclusion
+    description: "1 = member has a required exclusion, 0 = no exclusion"
+    semantic_role: measure
+    synonyms: [exclusion, required exclusion]
     data_type: INT
     nullable: false
     pk: false
-    fk: null
+    aggregatable: true
+    default_aggregation: SUM
+    aggregation_behavior: additive
     constraints: "Values: 0 or 1"
-    index: null
-    grain: "1 = member has a required exclusion, 0 = no exclusion"
-    record_level_info: >
-      Required exclusions are NCQA-defined conditions that remove a member
-      from the denominator. Example: patient was in hospice.
-      SUM gives total required exclusion count.
-      HEDIS rule: Members with required exclusion should NOT be counted
-      in Compliant or Non Compliant.
-    same_in_other_tables: null
+    valid_range: "0|1"
+    allowed_values: {0: "No Exclusion", 1: "Excluded"}
+    unit_of_measure: count
+    business_rules:
+      - "Members with exclusion should NOT be counted in Compliant or Non Compliant"
 
-  # --- Clinical Status ---
   clinicalonlystatus:
+    business_name: Clinical Status
+    description: "Clinical processing status of this member-measure row"
+    semantic_role: status
+    synonyms: [clinical status, status code]
     data_type: INT
     nullable: false
     pk: false
-    fk: null
-    constraints: "Values: 16, 17, 23, 24 (and possibly others)"
     index: "Non-clustered index"
-    grain: "Clinical processing status of this member-measure row"
-    record_level_info: >
-      Determines which category this row falls into:
-        16 = DVDE (Denominator Valid Data Error) — member had data but it was invalid
-        17 = DE (Denominator Eligible) — member is eligible and in the denominator
-        23 = ECC (Exclusion Clinical Code) — excluded by clinical code
-        24 = ERF (Exclusion Required Field) — excluded due to missing required field
-      
-      This column is critical for counting VDE, EDE, ECC, ERF in reports.
-      The count is done per entity type (patient/visit/event) based on
-      measuredetails.measuretype.
-      
-      For quality reports, typically only clinicalonlystatus=17 (DE) rows
-      contribute to Compliant/Non Compliant counts.
-    same_in_other_tables: null
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: false
+    groupable: true
+    categorical: true
+    high_cardinality: false
+    constraints: "Values: 16, 17, 23, 24 (and possibly others)"
+    business_rules:
+      - "Only status=17 (DE) rows contribute to Compliant/Non Compliant counts"
+      - "Count is done per entity type based on measuredetails.measuretype"
 
-  # --- Entity SSUIs (for counting) ---
   patientSSUI:
+    business_name: Patient SSUI
+    description: "Unique patient identifier — used for COUNT when measuretype = 'Patient-Process'"
+    semantic_role: identifier
     data_type: VARCHAR(50)
     nullable: true
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Unique patient identifier within this measure"
-    record_level_info: >
-      Used for COUNT when measuretype = 'Patient-Process'.
-      COUNT(DISTINCT patientSSUI) gives unique patient count.
-      NULL when this row's entity type is not patient.
-    same_in_other_tables: null
+    aggregatable: true
+    default_aggregation: COUNT
+    aggregation_behavior: non_additive
+    business_rules: ["NULL when entity type is not patient"]
 
   visitSSUI:
+    business_name: Visit SSUI
+    description: "Unique visit identifier — used for COUNT when measuretype = 'Visit'"
+    semantic_role: identifier
     data_type: VARCHAR(50)
     nullable: true
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Unique visit identifier within this measure"
-    record_level_info: >
-      Used for COUNT when measuretype = 'Visit'.
-      NULL when this row's entity type is not visit.
-    same_in_other_tables: null
+    aggregatable: true
+    default_aggregation: COUNT
+    aggregation_behavior: non_additive
+    business_rules: ["NULL when entity type is not visit"]
 
   eventSSUI:
+    business_name: Event SSUI
+    description: "Unique event identifier — used for COUNT when measuretype = 'Event'"
+    semantic_role: identifier
     data_type: VARCHAR(50)
     nullable: true
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Unique event identifier within this measure"
-    record_level_info: >
-      Used for COUNT when measuretype = 'Event'.
-      NULL when this row's entity type is not event.
-    same_in_other_tables: null
+    aggregatable: true
+    default_aggregation: COUNT
+    aggregation_behavior: non_additive
+    business_rules: ["NULL when entity type is not event"]
 
-  # --- Filters and Flags ---
   isRaw:
+    business_name: Is Raw
+    description: "Whether this is raw (unaudited) data"
+    semantic_role: flag
     data_type: BIT
     nullable: false
     pk: false
-    fk: null
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    groupable: false
+    categorical: true
     constraints: "Values: 0 or 1"
-    index: null
-    grain: "Whether this is raw (unaudited) data"
-    record_level_info: >
-      0 = Final/audited data — include in quality reports
-      1 = Raw/preliminary data — EXCLUDE from all quality reports
-      Standard fixed filter: WHERE isRaw = 0
-    same_in_other_tables: null
+    allowed_values: {0: "Final/audited — include", 1: "Raw/preliminary — EXCLUDE"}
+    business_rules: ["Standard fixed filter: WHERE isRaw = 0"]
 
   isUtilization:
+    business_name: Is Utilization
+    description: "Whether this is a utilization measure"
+    semantic_role: flag
     data_type: BIT
     nullable: false
     pk: false
-    fk: null
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    groupable: false
+    categorical: true
     constraints: "Values: 0 or 1"
-    index: null
-    grain: "Whether this is a utilization measure"
-    record_level_info: >
-      0 = Quality measure — include in quality reports
-      1 = Utilization measure — EXCLUDE from quality reports
-      Standard fixed filter: WHERE isUtilization = 0
-      Utilization measures have their own separate reports.
-    same_in_other_tables: null
+    allowed_values: {0: "Quality measure — include", 1: "Utilization — EXCLUDE"}
+    business_rules: ["Standard fixed filter: WHERE isUtilization = 0"]
 
   enrollmentStatus:
+    business_name: Enrollment Status
+    description: "Member enrollment status at time of measurement"
+    semantic_role: dimension
+    synonyms: [enrollment]
     data_type: VARCHAR(20)
     nullable: false
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Member enrollment status"
-    record_level_info: >
-      Indicates whether the member was enrolled at the time of measurement.
-      Used as a slicer in Power BI reports.
-    same_in_other_tables: null
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    high_cardinality: false
 
-  # --- Submission and Year ---
   NCQA_Submission_ID_Name:
+    business_name: Submission
+    description: "Human-readable submission identifier (e.g., 'Submission 1')"
+    semantic_role: dimension
+    synonyms: [submission, submission name]
     data_type: VARCHAR(100)
     nullable: false
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Human-readable submission identifier"
-    record_level_info: >
-      Display name for the submission (e.g., "Submission 1", "Submission 2").
-      Used as a slicer and in GROUP BY for most reports.
-    same_in_other_tables: null
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    high_cardinality: false
 
   MeasurementYear:
+    business_name: Measurement Year
+    description: "HEDIS measurement year"
+    semantic_role: date
+    synonyms: [year, reporting year]
     data_type: VARCHAR(10)
     nullable: false
     pk: false
-    fk: null
-    constraints: null
     index: "Non-clustered index"
-    grain: "HEDIS measurement year"
-    record_level_info: >
-      The year for which HEDIS measures are being reported.
-      Format may be 'YYYY' or 'YYYY-YYYY'. SUBSTRING(MeasurementYear, 1, 4)
-      extracts the 4-digit year for joins to cutpoints and keyvaluemapping.
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    high_cardinality: false
+    format: "YYYY or YYYY-YYYY"
+    business_rules: ["SUBSTRING(MeasurementYear, 1, 4) extracts 4-digit year for joins"]
     same_in_other_tables:
-      - table: qualitycutpoints
-        column: MeasurementYear
-        relationship: "Join key (first 4 chars)"
+      - {table: qualitycutpoints, column: MeasurementYear, relationship: "Join key (first 4 chars)"}
 
   initiativeyear:
+    business_name: Initiative Year
+    description: "Initiative/reporting year — may differ from MeasurementYear"
+    semantic_role: date
     data_type: VARCHAR(4)
     nullable: false
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Initiative/reporting year"
-    record_level_info: >
-      May differ from MeasurementYear in some configurations.
-      Used in some keyvaluemapping joins.
-    same_in_other_tables: null
+    filterable: true
+    groupable: true
+    categorical: true
 
-  # --- Provider and Product ---
   providerGroupID:
+    business_name: Provider Group ID
+    description: "Provider group this member is attributed to"
+    semantic_role: lookup
     data_type: INT
     nullable: false
     pk: false
     fk: "dimprovidergroup.providerGroupID"
-    constraints: null
     index: "Non-clustered index"
-    grain: "Provider group this member is attributed to"
-    record_level_info: >
-      FK to dimprovidergroup. Join also requires domainid for uniqueness.
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    groupable: true
+    business_rules: ["Join also requires domainid for uniqueness"]
     same_in_other_tables:
-      - table: dimprovidergroup
-        column: providerGroupID
-        relationship: "PK (with domainid) in dimprovidergroup"
+      - {table: dimprovidergroup, column: providerGroupID, relationship: "PK (with domainid)"}
 
   KeyToProvider:
+    business_name: Key To Provider
+    description: "Composite key to provider dimension — NOT a standard FK"
+    semantic_role: lookup
     data_type: VARCHAR(50)
     nullable: false
     pk: false
     fk: "CONCAT(dimprovider_RDM.domainid, '-', dimprovider_RDM.sourcesystemuniqueidentifier)"
-    constraints: "Format: {domainid}-{sourcesystemuniqueidentifier}"
     index: "Non-clustered index"
-    grain: "Composite key to provider dimension"
-    record_level_info: >
-      NOT a standard FK. This is a concatenated string of domainid + '-' +
-      sourcesystemuniqueidentifier. Must use CONCAT in join condition.
-      Example values: '1042-PAT00123', '2001-EVT00789'
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: false
+    groupable: false
+    constraints: "Format: {domainid}-{sourcesystemuniqueidentifier}"
+    format: "{domainid}-{ssui}"
+    example_values: ["1042-PAT00123", "2001-EVT00789"]
     same_in_other_tables:
-      - table: dimprovider_RDM
-        column: "CONCAT(domainid, '-', sourcesystemuniqueidentifier)"
-        relationship: "Concatenation-based join"
+      - {table: dimprovider_RDM, column: "CONCAT(domainid, '-', sourcesystemuniqueidentifier)", relationship: "Concatenation-based join"}
 
   ProductCategoryID:
+    business_name: Product Category ID
+    description: "Line of Business identifier"
+    semantic_role: lookup
     data_type: INT
     nullable: false
     pk: false
     fk: "dimproductcategory.ProductCategoryID"
-    constraints: null
-    index: null
-    grain: "Line of Business identifier"
-    record_level_info: >
-      FK to dimproductcategory. Maps to LOB names:
-      Commercial, Medicaid, Medicare.
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    groupable: true
+    categorical: true
     same_in_other_tables:
-      - table: dimproductcategory
-        column: ProductCategoryID
-        relationship: "PK in dimproductcategory"
-      - table: qualitycutpoints
-        column: ProductCategoryId
-        relationship: "Part of composite key in cutpoints"
+      - {table: dimproductcategory, column: ProductCategoryID, relationship: "PK"}
+      - {table: qualitycutpoints, column: ProductCategoryId, relationship: "Part of composite key"}
 
   domainid:
+    business_name: Domain ID
+    description: "Domain/tenant identifier"
+    semantic_role: identifier
     data_type: INT
     nullable: false
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Domain/tenant identifier"
-    record_level_info: >
-      Used in composite joins to dimprovidergroup (providerGroupID + domainid)
-      and as part of KeyToProvider concatenation.
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    groupable: true
     same_in_other_tables:
-      - table: dimprovidergroup
-        column: domainid
-        relationship: "Part of composite join key"
-      - table: qualitycutpoints
-        column: domainid
-        relationship: "Part of composite key in cutpoints"
+      - {table: dimprovidergroup, column: domainid, relationship: "Part of composite join key"}
+      - {table: qualitycutpoints, column: domainid, relationship: "Part of composite key"}
 
   minimumrequiredsamplesize:
+    business_name: MRSS
+    description: "Minimum Required Sample Size — only for hybrid measures"
+    semantic_role: measure
+    synonyms: [MRSS, sample size]
     data_type: INT
     nullable: true
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "MRSS for hybrid measures"
-    record_level_info: >
-      Minimum Required Sample Size — only applicable for hybrid measures.
-      NULL for administrative-only measures. Displayed as '-' when NULL.
-    same_in_other_tables: null
+    aggregatable: false
+    aggregation_behavior: non_additive
+    business_rules: ["NULL for administrative-only measures; display as '-' when NULL"]
 
   submissionsourcesfeedtype:
+    business_name: Source Feed Type
+    description: "Data source feed type for IDSS reporting (e.g., Administrative, Supplemental)"
+    semantic_role: dimension
+    synonyms: [source feed, feed type]
     data_type: VARCHAR(50)
     nullable: true
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Source feed type for IDSS reporting"
-    record_level_info: >
-      Identifies the data source feed type (e.g., Administrative, Supplemental).
-      Used in IDSS Hierarchy reports to break down measures by source.
-    same_in_other_tables: null
+    filterable: true
+    groupable: true
+    categorical: true
 
   oversample:
+    business_name: Oversample
+    description: "Whether this row is from an oversampled population"
+    semantic_role: flag
     data_type: VARCHAR(10)
     nullable: true
     pk: false
-    fk: null
-    constraints: null
-    index: null
-    grain: "Whether this row is from an oversampled population"
-    record_level_info: >
-      Used for hybrid measures where additional chart reviews are performed.
-    same_in_other_tables: null
+    filterable: true
+    categorical: true
+
+# ============================================================
+# VALUE DICTIONARY
+# ============================================================
+value_dictionary:
+  clinicalonlystatus:
+    16: "DVDE — Denominator Valid Data Error"
+    17: "DE — Denominator Eligible"
+    23: "ECC — Exclusion Clinical Code"
+    24: "ERF — Exclusion Required Field"
+  isRaw:
+    0: "Final/audited data"
+    1: "Raw/preliminary data"
+  isUtilization:
+    0: "Quality measure"
+    1: "Utilization measure"
+  Act_Performance_Met:
+    0: "Not Met"
+    1: "Met"
+
+# ============================================================
+# COLUMN RELATIONSHIPS
+# ============================================================
+column_relationships:
+  - column_a: Act_Performance_Met
+    column_b: Act_Performance_Not_Met
+    relationship_type: validation
+    rule: "Met + Not_Met = 1 for all DE (status=17) rows"
+
+  - column_a: clinicalonlystatus
+    column_b: Act_Performance_Met
+    relationship_type: dependency
+    rule: "Only status=17 rows contribute to compliance counts"
+
+  - column_a: keyvaluemeasureid
+    column_b: clinicalmeasureid
+    relationship_type: dependency
+    rule: "keyvaluemeasureid takes precedence; clinicalmeasureid is fallback when NULL"
+
+# ============================================================
+# DERIVED COLUMNS
+# ============================================================
+derived_columns:
+  - name: Measures
+    description: "Display name combining measure code and name"
+    formula: "CONCAT(M.submeasurecode, ' ', M.name)"
+    depends_on: [submeasurecode, measuredetails.name]
+
+  - name: "Compliance %"
+    description: "Compliance rate as percentage"
+    formula: >
+      CASE WHEN NCQAInvertedFlag='Y'
+        THEN ROUND(SUM(Act_Performance_Not_Met) * 100.0 / NULLIF(SUM(Act_Performance_Met) + SUM(Act_Performance_Not_Met), 0), 2)
+        ELSE ROUND(SUM(Act_Performance_Met) * 100.0 / NULLIF(SUM(Act_Performance_Met) + SUM(Act_Performance_Not_Met), 0), 2)
+      END
+    depends_on: [Act_Performance_Met, Act_Performance_Not_Met, measuredetails.NCQAInvertedFlag]
+
+  - name: RN
+    description: "Row number for deduplication"
+    formula: "ROW_NUMBER() OVER (PARTITION BY factssui, SubmissionId ORDER BY factssui, SubmissionId ASC)"
+    depends_on: [factssui, SubmissionId]
+
+# ============================================================
+# TIME DIMENSIONS
+# ============================================================
+time_dimensions:
+  MeasurementYear:
+    type: reporting_year
+    hierarchy: [year]
+
+# ============================================================
+# PERFORMANCE
+# ============================================================
+performance:
+  large_table: true
+  recommended_filters: [isRaw, isUtilization, organizationid, MeasurementYear]
+  partition_strategy:
+    column: MeasurementYear
+  clustering_columns: [organizationid, submeasurecode]
+
+# ============================================================
+# SECURITY
+# ============================================================
+security:
+  row_level_security:
+    enabled: false
+    column:
+  masking_rules: {}
+
+# ============================================================
+# SAMPLE ROWS
+# ============================================================
+sample_rows: []
