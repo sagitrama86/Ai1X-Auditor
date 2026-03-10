@@ -1,0 +1,137 @@
+# ============================================================
+# HEDIS Join Patterns
+# Known join relationships in the HEDIS RDW.
+# Used by discovery pipeline to auto-detect joins.
+# ============================================================
+
+join_patterns:
+
+  factqualityreport_to_factQualityReport_Filters:
+    left: factqualityreport
+    right: factQualityReport_Filters
+    join_type: INNER
+    on: [factssui, SubmissionId]
+    relationship: "1:1"
+    purpose: "Attribution model details, provider assignments, product/plan info"
+    detection: "Both tables have factssui + SubmissionId as PK"
+
+  factqualityreport_to_dimorganization:
+    left: factqualityreport
+    right: dimorganization
+    join_type: INNER
+    on: [organizationid]
+    relationship: "many:1"
+    purpose: "Organization/client name"
+    detection: "Both tables have organizationid column"
+
+  factqualityreport_to_measuredetails:
+    left: factqualityreport
+    right: measuredetails
+    join_type: INNER
+    type: conditional
+    on_expression: >
+      (F.keyvaluemeasureid IS NOT NULL AND F.keyvaluemeasureid = M.measureid)
+      OR (F.keyvaluemeasureid IS NULL AND F.clinicalmeasureid = M.clinicalmeasureid)
+    relationship: "many:1"
+    purpose: "Measure name, type, domain, category, flags"
+    detection: "Left has keyvaluemeasureid + clinicalmeasureid, right has measureid + clinicalmeasureid"
+    note: "Conditional join — keyvaluemeasureid takes precedence"
+
+  factqualityreport_to_dimprovidergroup:
+    left: factqualityreport
+    right: dimprovidergroup
+    join_type: INNER
+    on: [providerGroupID, domainid]
+    relationship: "many:1"
+    purpose: "Provider group name"
+    detection: "Both tables have providerGroupID + domainid"
+
+  factqualityreport_to_dimprovider_RDM:
+    left: factqualityreport
+    right: dimprovider_RDM
+    join_type: INNER
+    type: concatenation
+    on_expression: "F.KeyToProvider = CONCAT(PR.domainid, '-', PR.sourcesystemuniqueidentifier)"
+    relationship: "many:1"
+    purpose: "Provider details — NPI, specialty, name"
+    detection: "Left has KeyToProvider, right has domainid + sourcesystemuniqueidentifier"
+    note: "Concatenation-based join — not a standard FK"
+
+  factqualityreport_to_dimproductcategory:
+    left: factqualityreport
+    right: dimproductcategory
+    join_type: INNER
+    on: [ProductCategoryID]
+    relationship: "many:1"
+    purpose: "Line of Business name"
+    detection: "Both tables have ProductCategoryID"
+
+  factqualityreport_to_qualitycutpoints:
+    left: factqualityreport
+    right: qualitycutpoints
+    join_type: LEFT
+    on: [organizationId, ProductCategoryId, domainid, MeasurementYear, SubMeasureCode]
+    relationship: "many:1"
+    purpose: "NCQA percentile cutpoints for ranking"
+    detection: "Right table has Cutpoint columns"
+    note: "LEFT JOIN — not all measure+org combinations have cutpoints"
+
+  factqualityreport_to_keyvaluemapping:
+    left: factqualityreport
+    right: keyvaluemapping
+    join_type: LEFT
+    type: complex
+    on_expression: >
+      KVM.ADDITIONALKEY2 = SUBSTRING(F.MeasurementYear, 1, 4)
+      AND KVM.ADDITIONALKEY1 = F.KEYVALUEMEASUREID
+      AND KVM.KeyName = F.submeasurecode
+      AND KVM.SubModuleName = 'Measure_Merge'
+    relationship: "many:0..1"
+    purpose: "Measure merging — old codes to new"
+    detection: "Right table has SubModuleName column with 'Measure_Merge' values"
+    note: "LEFT JOIN — most measures are not merged"
+
+# ============================================================
+# Table Classification Rules
+# ============================================================
+table_classification:
+  fact:
+    detection:
+      - "Table name contains 'fact'"
+      - "Has high row count (>100K)"
+      - "Has multiple FK-like columns"
+    examples: [factqualityreport, factQualityReport_Filters]
+
+  dimension:
+    detection:
+      - "Table name starts with 'dim'"
+      - "Has a single-column PK"
+      - "Has a 'name' column"
+    examples: [dimorganization, dimproductcategory, dimprovidergroup, dimprovider_RDM, measuredetails]
+
+  lookup:
+    detection:
+      - "Small row count (<10K)"
+      - "Has composite PK"
+      - "Contains 'cutpoint', 'mapping', 'lookup' in name"
+    examples: [qualitycutpoints, keyvaluemapping]
+
+# ============================================================
+# Known Problems to Detect
+# ============================================================
+known_problems:
+  - pattern: "Column named KeyToProvider"
+    problem: "Concatenated composite key instead of proper FK"
+    suggestion: "Add a computed column or proper FK"
+
+  - pattern: "Column with values -1 as sentinel"
+    problem: "Uses -1 instead of NULL for missing values"
+    suggestion: "Use NULL; handle in display with CASE"
+
+  - pattern: "Same column name in fact and dimension table"
+    problem: "Denormalized column"
+    suggestion: "Remove from fact table; always join to dimension"
+
+  - pattern: "Integer column with only values 16, 17, 23, 24"
+    problem: "Magic numbers without lookup table"
+    suggestion: "Create a dimclinicalstatus lookup table"

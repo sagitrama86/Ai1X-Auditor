@@ -7,12 +7,12 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
-.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;z-index:10}
 .sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
-.sidebar-nav{flex:1;padding:12px}
+.sidebar-nav{flex:1;padding:12px;overflow-y:auto}
 .nav-section{margin-bottom:20px}
 .nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:13px;transition:all .15s;text-decoration:none}
 .nav-item:hover{background:#1f2937}
 .nav-item.active{background:#1f6feb22;color:#58a6ff}
 .sidebar-footer{padding:16px;border-top:1px solid #30363d}
@@ -99,16 +99,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="sidebar-nav">
     <div class="nav-section"><div class="nav-section-title">Main</div>
       <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
-      <div class="nav-item"onclick="location='16-schema.html'">🔍 Schema Explorer</div>
-      <div class="nav-item active">🔧 Skills Library</div></div>
+      <div class="nav-item" onclick="location='02-connect.html'">⚙️ Settings</div>
+      <div class="nav-item active" onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
     <div class="nav-section"><div class="nav-section-title">Generate</div>
-      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">🖥️ AI1X CLI</div>
       <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
       <div class="nav-item" onclick="location='07-generate-sql.html'">🛢️ Generate SQL</div>
       <div class="nav-item" onclick="location='10-compare.html'">⚖️ Compare</div>
       <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+    <div class="nav-section"><div class="nav-section-title">Info</div>
+      <div class="nav-item" onclick="location='17-user-guide.html'">📖 User Guide</div></div>
   </div>
-  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW — 23 tables</div></div>
+  <div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
 </div>
 <div class="main">
   <div class="breadcrumb"><a href="05-home-loaded.html">Home</a> / <span>Skills Library</span></div>
@@ -255,7 +257,7 @@ function renderSchemaDetail(s){
   if(colEntries.length){
     html+=`<div class="ms"><div class="ms-title">Columns (${colEntries.length})</div>
       <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <tr style="border-bottom:1px solid #30363d"><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">NAME</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">BUSINESS NAME</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">TYPE</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">ROLE</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">AGG</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">DESCRIPTION</th></tr>
+        <tr style="border-bottom:1px solid #30363d"><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">NAME</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">BUSINESS NAME</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">TYPE</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">ROLE</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">AGG</th><th style="text-align:left;padding:6px;color:#484f58;font-size:10px">DESCRIPTION</th><th style="padding:6px;color:#484f58;font-size:10px">EDIT</th></tr>
         ${colEntries.map(([n,c])=>`<tr style="border-bottom:1px solid #21262d">
           <td style="padding:5px 6px;font-weight:500;${c.pk?'color:#d29922':''}">${n}</td>
           <td style="padding:5px 6px;color:#8b949e">${c.business_name||'—'}</td>
@@ -263,6 +265,7 @@ function renderSchemaDetail(s){
           <td style="padding:5px 6px;color:#a371f7">${c.semantic_role||'—'}</td>
           <td style="padding:5px 6px">${c.aggregatable?c.default_aggregation||'✓':'—'}</td>
           <td style="padding:5px 6px;color:#8b949e;max-width:250px">${(c.description||'').substring(0,100)}</td>
+          <td style="padding:5px 6px"><button onclick="editColumn('${d.table_name}','${n}')" style="background:none;border:1px solid #30363d;border-radius:4px;color:#58a6ff;cursor:pointer;font-size:11px;padding:2px 8px">✏️</button></td>
         </tr>`).join('')}
       </table>
     </div>`;
@@ -355,6 +358,53 @@ function showDetail(id){
       </div>`;
   }
   dp.scrollIntoView({behavior:'smooth'});
+}
+
+function editColumn(table,col){
+  const s=SKILLS.find(x=>x.id==='schema_'+table);
+  if(!s)return;
+  const c=s.detail.columns[col];
+  if(!c)return;
+  const fields=['business_name','description','semantic_role','aggregatable','default_aggregation','aggregation_behavior','filterable','sortable','groupable','categorical'];
+  const dp=document.getElementById('detail-panel');
+  dp.classList.add('show');
+  document.getElementById('dp-title').textContent='✏️ Edit '+table+'.'+col;
+  let html='<form id="edit-form" style="padding:16px 20px">';
+  fields.forEach(f=>{
+    const v=c[f]!==undefined?c[f]:'';
+    const isB=typeof v==='boolean';
+    if(isB){
+      html+=`<div style="display:flex;align-items:center;gap:8px;padding:4px 0"><label style="font-size:12px;color:#8b949e;min-width:140px">${f}</label><input type="checkbox" name="${f}" ${v?'checked':''}></div>`;
+    }else{
+      html+=`<div style="padding:4px 0"><label style="font-size:12px;color:#8b949e;display:block;margin-bottom:2px">${f}</label><input name="${f}" value="${String(v).replace(/"/g,'&quot;')}" style="width:100%;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#e1e4e8;padding:4px 8px;font-size:12px"></div>`;
+    }
+  });
+  html+=`<div style="display:flex;gap:8px;margin-top:12px">
+    <button type="button" onclick="saveColumnEdit('${table}','${col}')" class="btn btn-outline" style="font-size:12px;background:#1f6feb;color:#fff;border:none">💾 Save</button>
+    <button type="button" onclick="showDetail('schema_${table}')" class="btn btn-outline" style="font-size:12px">Cancel</button>
+  </div></form>`;
+  document.getElementById('dp-body').innerHTML=html;
+  dp.scrollIntoView({behavior:'smooth'});
+}
+
+async function saveColumnEdit(table,col){
+  const form=document.getElementById('edit-form');
+  const updates={};
+  const fields=['business_name','description','semantic_role','aggregatable','default_aggregation','aggregation_behavior','filterable','sortable','groupable','categorical'];
+  fields.forEach(f=>{
+    const el=form.querySelector('[name="'+f+'"]');
+    if(el.type==='checkbox')updates[f]=el.checked;
+    else if(el.value)updates[f]=el.value;
+  });
+  const d=await fetch(API+'/api/schema/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table_name:table,column_name:col,updates})}).then(r=>r.json());
+  if(d.status==='saved'){
+    document.getElementById('dp-title').textContent='✅ Saved '+table+'.'+col;
+    // Refresh skills
+    const resp=await fetch(API+'/api/skills');
+    const data=await resp.json();
+    SKILLS=data.skills;
+    setTimeout(()=>showDetail('schema_'+table),1000);
+  }
 }
 
 init();

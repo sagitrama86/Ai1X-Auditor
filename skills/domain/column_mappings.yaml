@@ -1,0 +1,538 @@
+factssui:
+  business_name: Fact SSUI
+  semantic_role: identifier
+  aggregatable: false
+  aggregation_behavior: non_additive
+  description: "Surrogate key \u2014 uniquely identifies a member-measure-clinicalstatus\
+    \ combination"
+SubmissionId:
+  business_name: Submission ID
+  semantic_role: identifier
+  aggregatable: false
+  aggregation_behavior: non_additive
+  filterable: true
+  groupable: true
+  categorical: true
+organizationid:
+  business_name: Organization ID
+  semantic_role: lookup
+  aggregatable: false
+  fk_target: dimorganization.organizationid
+organizationname:
+  business_name: Organization Name
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - org name
+  - client
+  - health plan
+clinicalmeasureid:
+  business_name: Clinical Measure ID
+  semantic_role: lookup
+  aggregatable: false
+  description: Fallback join key to measuredetails when keyvaluemeasureid is NULL
+  fk_target: measuredetails.clinicalmeasureid (conditional)
+keyvaluemeasureid:
+  business_name: Key Value Measure ID
+  semantic_role: lookup
+  aggregatable: false
+  description: Primary join key to measuredetails. Takes precedence over clinicalmeasureid.
+  fk_target: measuredetails.measureid (conditional)
+submeasurecode:
+  business_name: Sub-Measure Code
+  semantic_role: code
+  aggregatable: false
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  format: XXX-NN
+  synonyms:
+  - measure code
+  - measure
+Act_Performance_Met:
+  business_name: Compliant
+  semantic_role: measure
+  aggregatable: true
+  default_aggregation: SUM
+  aggregation_behavior: additive
+  valid_range: 0|1
+  allowed_values:
+    0: Not Met
+    1: Met
+  business_rules:
+  - Numerator for non-inverted measures (NCQAInvertedFlag != 'Y')
+  - SUM gives total compliant count
+  - Act_Performance_Met + Act_Performance_Not_Met = 1 for every DE row
+  synonyms:
+  - compliant
+  - numerator
+  - performance met
+Act_Performance_Not_Met:
+  business_name: Non Compliant
+  semantic_role: measure
+  aggregatable: true
+  default_aggregation: SUM
+  aggregation_behavior: additive
+  valid_range: 0|1
+  allowed_values:
+    0: Met
+    1: Not Met
+  business_rules:
+  - Numerator for inverted measures (NCQAInvertedFlag = 'Y')
+  - SUM gives total non-compliant count
+  synonyms:
+  - non compliant
+  - non-compliant
+reportingExclusionStatus:
+  business_name: Required Exclusion
+  semantic_role: measure
+  aggregatable: true
+  default_aggregation: SUM
+  aggregation_behavior: additive
+  valid_range: 0|1
+  allowed_values:
+    0: No Exclusion
+    1: Excluded
+  business_rules:
+  - Members with exclusion should NOT be counted in Compliant or Non Compliant
+  synonyms:
+  - exclusion
+  - required exclusion
+clinicalonlystatus:
+  business_name: Clinical Status
+  semantic_role: status
+  aggregatable: false
+  aggregation_behavior: non_additive
+  filterable: true
+  groupable: true
+  categorical: true
+  allowed_values:
+    16: "DVDE \u2014 Denominator Valid Data Error"
+    17: "DE \u2014 Denominator Eligible"
+    23: "ECC \u2014 Exclusion Clinical Code"
+    24: "ERF \u2014 Exclusion Required Field"
+  business_rules:
+  - Only status=17 (DE) rows contribute to Compliant/Non Compliant counts
+  - Count is done per entity type based on measuredetails.measuretype
+  synonyms:
+  - clinical status
+  - status code
+patientSSUI:
+  business_name: Patient SSUI
+  semantic_role: identifier
+  aggregatable: true
+  default_aggregation: COUNT
+  aggregation_behavior: non_additive
+  description: Used for COUNT when measuretype = 'Patient-Process'. NULL otherwise.
+visitSSUI:
+  business_name: Visit SSUI
+  semantic_role: identifier
+  aggregatable: true
+  default_aggregation: COUNT
+  aggregation_behavior: non_additive
+  description: Used for COUNT when measuretype = 'Visit'. NULL otherwise.
+eventSSUI:
+  business_name: Event SSUI
+  semantic_role: identifier
+  aggregatable: true
+  default_aggregation: COUNT
+  aggregation_behavior: non_additive
+  description: Used for COUNT when measuretype = 'Event'. NULL otherwise.
+isRau:
+  business_name: Is RAU
+  semantic_role: flag
+  aggregatable: false
+  aggregation_behavior: non_additive
+  filterable: true
+  categorical: true
+  allowed_values:
+    0: "Not RAU \u2014 include in quality reports"
+    1: "RAU \u2014 EXCLUDE"
+  business_rules:
+  - 'Standard fixed filter: WHERE isRau = 0'
+isUtilization:
+  business_name: Is Utilization
+  semantic_role: flag
+  aggregatable: false
+  aggregation_behavior: non_additive
+  filterable: true
+  categorical: true
+  allowed_values:
+    0: "Quality measure \u2014 include"
+    1: "Utilization \u2014 EXCLUDE"
+  business_rules:
+  - 'Standard fixed filter: WHERE isUtilization = 0'
+enrollmentStatus:
+  business_name: Enrollment Status
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - enrollment
+NCQA_Submission_ID_Name:
+  business_name: Submission
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - submission
+  - submission name
+MeasurementYear:
+  business_name: Measurement Year
+  semantic_role: date
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  format: YYYY or YYYY-YYYY
+  business_rules:
+  - SUBSTRING(MeasurementYear, 1, 4) extracts 4-digit year for joins
+  synonyms:
+  - year
+  - reporting year
+initiativeyear:
+  business_name: Initiative Year
+  semantic_role: date
+  filterable: true
+  groupable: true
+  categorical: true
+providerGroupID:
+  business_name: Provider Group ID
+  semantic_role: lookup
+  aggregatable: false
+  fk_target: dimprovidergroup.providerGroupID
+  business_rules:
+  - Join also requires domainid for uniqueness
+KeyToProvider:
+  business_name: Key To Provider
+  semantic_role: lookup
+  aggregatable: false
+  description: "Composite key to provider dimension \u2014 NOT a standard FK"
+  format: '{domainid}-{sourcesystemuniqueidentifier}'
+  business_rules:
+  - 'Join: F.KeyToProvider = CONCAT(PR.domainid, ''-'', PR.sourcesystemuniqueidentifier)'
+ProductCategoryID:
+  business_name: Product Category ID
+  semantic_role: lookup
+  aggregatable: false
+  fk_target: dimproductcategory.ProductCategoryID
+domainid:
+  business_name: Domain ID
+  semantic_role: identifier
+  aggregatable: false
+minimumrequiredsamplesize:
+  business_name: MRSS
+  semantic_role: measure
+  aggregatable: false
+  aggregation_behavior: non_additive
+  business_rules:
+  - NULL for administrative-only measures; display as '-' when NULL
+  synonyms:
+  - MRSS
+  - sample size
+submissionsourcesfeedtype:
+  business_name: Source Feed Type
+  semantic_role: dimension
+  filterable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - source feed
+  - feed type
+oversample:
+  business_name: Oversample
+  semantic_role: flag
+  filterable: true
+  categorical: true
+productname:
+  business_name: Products
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - product
+  - plan name
+healthplanname:
+  business_name: Health Plans
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - health plan
+  - plan
+attributionmodelcode:
+  business_name: Attribution Model
+  semantic_role: code
+  filterable: true
+  groupable: true
+  categorical: true
+  business_rules:
+  - When matches user-selected Attribute Type, show actual provider/subnetwork
+  - Otherwise show 'Unknown'
+  synonyms:
+  - attribute type
+  - attribution
+assignedprovidergroupname:
+  business_name: Provider Group
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  business_rules:
+  - Only meaningful when attributionmodelcode matches selected Attribute Type
+assignedprovidername:
+  business_name: Provider Name
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  business_rules:
+  - 'Sentinel value: ''-1'' means unknown. Handle with CASE.'
+assignedproviderfname:
+  business_name: Provider First Name
+  semantic_role: dimension
+  business_rules:
+  - 'Sentinel value: ''-1'' means unknown'
+assignedproviderlname:
+  business_name: Provider Last Name
+  semantic_role: dimension
+  business_rules:
+  - 'Used with fname to construct: ''lname, fname'''
+Subnetwork:
+  business_name: Entity / Subnetwork
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  business_rules:
+  - Only meaningful when attributionmodelcode matches selected Attribute Type
+  synonyms:
+  - entity
+  - subnetwork
+businessgroupcode:
+  business_name: Business Group
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - business group
+measureid:
+  business_name: Measure ID
+  semantic_role: identifier
+  aggregatable: false
+  description: "Unique measure identifier \u2014 primary join key from factqualityreport"
+name:
+  business_name: Measure Name
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  business_rules:
+  - 'Used in Measures display: CONCAT(submeasurecode, '' '', name)'
+measurecode:
+  business_name: Measure Code
+  semantic_role: code
+  filterable: true
+  groupable: true
+  categorical: true
+  description: Parent measure code without sub-measure number (e.g., AWC, CBP)
+measuretype:
+  business_name: Measure Type
+  semantic_role: code
+  filterable: true
+  groupable: true
+  categorical: true
+  allowed_values:
+    Visit: COUNT(visitSSUI)
+    Event: COUNT(eventSSUI)
+    Patient-Process: COUNT(patientSSUI)
+  business_rules:
+  - Determines counting entity for VDE/EDE/ECC/ERF
+STARINDICATOR:
+  business_name: Star Indicator
+  semantic_role: flag
+  categorical: true
+  allowed_values:
+    Y: Star-rated
+    null: Not star-rated
+  business_rules:
+  - '''Y'' = display with asterisk: ''AWC-01*'''
+InverseFlag:
+  business_name: Inverse Flag
+  semantic_role: flag
+  categorical: true
+  allowed_values:
+    Y: Lower is better
+    N: Higher is better
+  business_rules:
+  - Affects percentile comparison direction. DIFFERENT from NCQAInvertedFlag.
+NCQAInvertedFlag:
+  business_name: NCQA Inverted Flag
+  semantic_role: flag
+  categorical: true
+  allowed_values:
+    Y: Numerator = Non Compliant
+    N: Numerator = Compliant
+  business_rules:
+  - Controls which column is the numerator. DIFFERENT from InverseFlag.
+CMQDOMAIN:
+  business_name: NCQA Domain
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - domain
+  - NCQA domain
+category:
+  business_name: Health Category
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - health category
+productcategoryname:
+  business_name: Line of Business
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - LOB
+  - line of business
+  - product category
+providerGroupName:
+  business_name: Provider Group Name
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+  synonyms:
+  - provider group
+  - group name
+sourcesystemuniqueidentifier:
+  business_name: Source System ID
+  semantic_role: identifier
+  description: "Provider identifier from source system \u2014 second part of CONCAT\
+    \ key"
+providerNPI:
+  business_name: Provider NPI
+  semantic_role: identifier
+  pii: true
+  filterable: true
+  groupable: true
+  synonyms:
+  - NPI
+specialty:
+  business_name: Specialty
+  semantic_role: dimension
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: true
+Cutpoint3:
+  business_name: 25th Percentile Cutpoint
+  semantic_role: metric
+  aggregatable: false
+  aggregation_behavior: non_additive
+  unit_of_measure: percentage
+  description: Compliance % below this = <25th percentile
+Cutpoint5:
+  business_name: 50th Percentile Cutpoint
+  semantic_role: metric
+  aggregatable: false
+  aggregation_behavior: non_additive
+  unit_of_measure: percentage
+Cutpoint7:
+  business_name: 75th Percentile Cutpoint
+  semantic_role: metric
+  aggregatable: false
+  aggregation_behavior: non_additive
+  unit_of_measure: percentage
+Cutpoint8:
+  business_name: 90th Percentile Cutpoint
+  semantic_role: metric
+  aggregatable: false
+  aggregation_behavior: non_additive
+  unit_of_measure: percentage
+KeyName:
+  business_name: Key Name
+  semantic_role: code
+  description: "Original measure code \u2014 matches factqualityreport.submeasurecode"
+KEYVALUE:
+  business_name: Key Value
+  semantic_role: code
+  description: "Mapped/merged measure code \u2014 replaces original in display when\
+    \ NOT NULL"
+ADDITIONALKEY1:
+  business_name: Additional Key 1
+  semantic_role: lookup
+  description: Maps to keyvaluemeasureid
+ADDITIONALKEY2:
+  business_name: Additional Key 2
+  semantic_role: lookup
+  description: Maps to measurement year (first 4 chars)
+SubModuleName:
+  business_name: Sub Module Name
+  semantic_role: code
+  categorical: true
+  business_rules:
+  - Only rows with SubModuleName = 'Measure_Merge' are used in quality reports
+organizationId:
+  business_name: Organization ID
+  semantic_role: identifier
+  aggregatable: false
+ProductCategoryId:
+  business_name: Product Category ID
+  semantic_role: identifier
+  aggregatable: false
+SubMeasureCode:
+  business_name: Sub-Measure Code
+  semantic_role: code
+  filterable: true
+  groupable: true
+  categorical: true
+assignedproviderid:
+  business_name: Provider ID
+  semantic_role: lookup
+  aggregatable: false
+  description: Numeric ID for the assigned provider
+assignedprovidergroupid:
+  business_name: Provider Group ID
+  semantic_role: lookup
+  aggregatable: false
+  description: Numeric ID for the assigned provider group
+SomeNewColumn:
+  business_name: Some New Column
+  description: New column for quality report
+  semantic_role: dimension
+  aggregatable: false
+  default_aggregation: 'null'
+  aggregation_behavior: non_additive
+  filterable: true
+  sortable: true
+  groupable: true
+  categorical: false
+  allowed_values: {}
+  business_rules: []

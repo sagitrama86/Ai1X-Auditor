@@ -1,0 +1,157 @@
+# ============================================================
+# Discovery Examples — Few-Shot for Ollama
+# Shows Ollama exactly how to transform raw schema into
+# enriched v1.0 YAML for HEDIS tables.
+# ============================================================
+
+examples:
+
+  # --- Example 1: Fact table column (measure) ---
+  - raw:
+      table: factqualityreport
+      column: Act_Performance_Met
+      data_type: INT
+      nullable: false
+      pk: false
+      sample_values: [0, 1, 1, 0, 1, 1, 0, 1]
+    enriched:
+      business_name: Compliant
+      description: "1 = member met performance criteria (compliant), 0 = did not"
+      semantic_role: measure
+      aggregatable: true
+      default_aggregation: SUM
+      aggregation_behavior: additive
+      valid_range: "0|1"
+      allowed_values: {0: "Not Met", 1: "Met"}
+      business_rules:
+        - "Numerator for non-inverted measures"
+        - "For inverted measures (NCQAInvertedFlag='Y'), use Act_Performance_Not_Met instead"
+        - "Act_Performance_Met + Act_Performance_Not_Met = 1 for every DE row"
+
+  # --- Example 2: Fact table column (status with value dictionary) ---
+  - raw:
+      table: factqualityreport
+      column: clinicalonlystatus
+      data_type: INT
+      nullable: false
+      pk: false
+      sample_values: [17, 17, 17, 16, 17, 23, 17, 24]
+    enriched:
+      business_name: Clinical Status
+      description: "Clinical processing status of this member-measure row"
+      semantic_role: status
+      aggregatable: false
+      aggregation_behavior: non_additive
+      filterable: true
+      groupable: true
+      categorical: true
+      allowed_values:
+        16: "DVDE — Denominator Valid Data Error"
+        17: "DE — Denominator Eligible"
+        23: "ECC — Exclusion Clinical Code"
+        24: "ERF — Exclusion Required Field"
+      business_rules:
+        - "Only status=17 (DE) rows contribute to Compliant/Non Compliant counts"
+
+  # --- Example 3: Fact table column (flag/filter) ---
+  - raw:
+      table: factqualityreport
+      column: isRau
+      data_type: TINYINT(1)
+      nullable: false
+      pk: false
+      sample_values: [0, 0, 0, 0, 0, 1, 0, 0]
+    enriched:
+      business_name: Is RAU
+      description: "Whether this is a Risk Adjusted Utilization measure"
+      semantic_role: flag
+      aggregatable: false
+      aggregation_behavior: non_additive
+      filterable: true
+      categorical: true
+      allowed_values: {0: "Not RAU — include", 1: "RAU — EXCLUDE"}
+      business_rules: ["Standard fixed filter: WHERE isRau = 0"]
+
+  # --- Example 4: Dimension table column (display name) ---
+  - raw:
+      table: dimorganization
+      column: organizationname
+      data_type: VARCHAR(200)
+      nullable: false
+      pk: false
+      sample_values: ["Acme Health Plan", "BlueStar Insurance", "Meridian Health"]
+    enriched:
+      business_name: Organization Name
+      description: "Organization display name — primary slicer in all reports"
+      semantic_role: dimension
+      aggregatable: false
+      aggregation_behavior: non_additive
+      filterable: true
+      sortable: true
+      groupable: true
+      categorical: true
+      high_cardinality: false
+
+  # --- Example 5: Dimension table column (code with known values) ---
+  - raw:
+      table: measuredetails
+      column: measuretype
+      data_type: VARCHAR(30)
+      nullable: false
+      pk: false
+      sample_values: ["Visit", "Patient-Process", "Event", "Patient-Process"]
+    enriched:
+      business_name: Measure Type
+      description: "HEDIS measure type — determines which SSUI column to count"
+      semantic_role: code
+      aggregatable: false
+      filterable: true
+      groupable: true
+      categorical: true
+      allowed_values:
+        Visit: "COUNT(visitSSUI)"
+        Event: "COUNT(eventSSUI)"
+        Patient-Process: "COUNT(patientSSUI)"
+      business_rules:
+        - "Determines counting entity for VDE/EDE/ECC/ERF calculations"
+
+  # --- Example 6: Lookup table column (percentile cutpoint) ---
+  - raw:
+      table: qualitycutpoints
+      column: Cutpoint5
+      data_type: DECIMAL(5,2)
+      nullable: true
+      pk: false
+      sample_values: [55.00, 70.00, 63.00, 78.00, null]
+    enriched:
+      business_name: 50th Percentile Cutpoint
+      description: "Between Cutpoint3 and Cutpoint5 = 25th percentile"
+      semantic_role: metric
+      aggregatable: false
+      aggregation_behavior: non_additive
+      unit_of_measure: percentage
+
+  # --- Example 7: Table-level enrichment ---
+  - raw_table:
+      table_name: factqualityreport
+      classification: fact
+      row_count: 4523891
+      pk_columns: [factssui, SubmissionId]
+      column_count: 27
+    enriched_table:
+      business_name: Quality Report Fact
+      domain: Quality Reporting
+      subject_area: HEDIS
+      business_purpose: >
+        Central table for all quality reports — compliance rates, percentile
+        rankings, gap-to-target, and clinical status counts.
+      table_intent:
+        ai_primary_usage: [reporting, metric_calculation, analytics]
+        typical_filters: [isRau, isUtilization, MeasurementYear, organizationid]
+        typical_grouping: [submeasurecode, NCQA_Submission_ID_Name, organizationname]
+        query_warnings:
+          - "Always filter isRau=0 and isUtilization=0"
+          - "Always deduplicate with ROW_NUMBER OVER (PARTITION BY factssui, SubmissionId)"
+      grain:
+        description: "One row per unique combination of factssui + SubmissionId"
+        deduplication_logic: "ROW_NUMBER() OVER (PARTITION BY factssui, SubmissionId ORDER BY factssui ASC) = 1"

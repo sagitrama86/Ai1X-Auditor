@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AI1X Auditor — User Guide</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:0;color:#c9d1d9;background:#0f1117}
+    .main{margin-left:260px;max-width:900px;padding:40px;line-height:1.7}
+    .sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;z-index:10}
+    .sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+    .sidebar-nav{flex:1;padding:12px;overflow-y:auto}
+    .nav-section{margin-bottom:20px}
+    .nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:13px;transition:all .15s;text-decoration:none}
+    .nav-item:hover{background:#1f2937}
+    .nav-item.active{background:#1f6feb22;color:#58a6ff}
+    .sidebar-footer{padding:16px;border-top:1px solid #30363d}
+    .schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+    h1{color:#58a6ff;font-size:28px;margin-bottom:8px}
+    h2{color:#58a6ff;margin-top:40px;padding-bottom:8px;border-bottom:1px solid #30363d;font-size:20px}
+    h3{color:#e1e4e8;margin-top:24px;font-size:16px}
+    p{color:#8b949e;font-size:14px}
+    code{font-family:'SF Mono',monospace;background:#161b22;padding:2px 6px;border-radius:4px;font-size:13px;color:#58a6ff}
+    pre{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;font-size:12px;line-height:1.6;overflow-x:auto;color:#c9d1d9;font-family:'SF Mono',monospace}
+    .card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px;margin:16px 0}
+    .card h3{margin-top:0}
+    .steps{counter-reset:step}
+    .step{counter-increment:step;padding:12px 0 12px 40px;position:relative;border-left:2px solid #30363d;margin-left:12px}
+    .step:last-child{border-left:2px solid transparent}
+    .step::before{content:counter(step);position:absolute;left:-14px;top:12px;width:26px;height:26px;background:#1f6feb;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+    .step h3{margin-top:0;margin-bottom:4px}
+    .cmd{display:flex;align-items:center;gap:8px;padding:8px 0}
+    .cmd code{background:#0d1117;padding:4px 10px;border:1px solid #30363d}
+    .cmd span{color:#8b949e;font-size:13px}
+    table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+    th{text-align:left;padding:8px 12px;background:#161b22;color:#8b949e;border-bottom:1px solid #30363d;font-size:11px;text-transform:uppercase}
+    td{padding:8px 12px;border-bottom:1px solid #21262d}
+    .tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px}
+    .tag.blue{background:#1f6feb22;color:#58a6ff}
+    .tag.green{background:#3fb95022;color:#3fb950}
+    .tag.purple{background:#a371f722;color:#a371f7}
+    a{color:#58a6ff;text-decoration:none}
+    a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item" onclick="location='02-connect.html'">⚙️ Settings</div>
+      <div class="nav-item" onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+    <div class="nav-section"><div class="nav-section-title">Generate</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">🖥️ AI1X CLI</div>
+      <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">🛢️ Generate SQL</div>
+      <div class="nav-item" onclick="location='10-compare.html'">⚖️ Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+    <div class="nav-section"><div class="nav-section-title">Info</div>
+      <div class="nav-item active" onclick="location='17-user-guide.html'">📖 User Guide</div></div>
+  </div>
+  <div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
+</div>
+
+<div class="main">
+
+<h1>🔷 AI1X Auditor — User Guide</h1>
+<p>AI-powered HEDIS report validation tool. Version 0.1.0</p>
+
+<h2>Getting Started</h2>
+
+<div class="steps">
+  <div class="step">
+    <h3>Start the Backend</h3>
+    <pre>cd backend
+py -m uvicorn main:app --port 8000 --reload</pre>
+    <p>The backend serves the API and the UI at <code>http://localhost:8000/ui/</code></p>
+  </div>
+  <div class="step">
+    <h3>Connect Your Database</h3>
+    <p>Go to <a href="02-connect.html">Connect</a> or use the terminal:</p>
+    <pre>❯ /discover</pre>
+    <p>This connects to MySQL, discovers tables, and enriches them using HEDIS knowledge + Ollama.</p>
+  </div>
+  <div class="step">
+    <h3>Explore the Schema</h3>
+    <p>Browse tables in <a href="16-schema.html">Schema Explorer</a> or the terminal:</p>
+    <pre>❯ /schema
+❯ /schema factqualityreport</pre>
+  </div>
+  <div class="step">
+    <h3>Create a Report</h3>
+    <p>Use the AI Chat terminal to define a report:</p>
+    <pre>❯ Create MeasureList report with Measures, Submission, Compliance %, Denominator, Compliant</pre>
+    <p>The AI generates the report definition, validates it against HEDIS rules, and saves it as YAML.</p>
+  </div>
+  <div class="step">
+    <h3>Generate SQL</h3>
+    <pre>❯ /sql measurelist</pre>
+    <p>Generates production-grade SQL from the report YAML + field templates + joins.</p>
+  </div>
+  <div class="step">
+    <h3>Compare Results</h3>
+    <p>Export data from Power BI and your SQL query, then compare on the <a href="10-compare.html">Compare</a> page.</p>
+  </div>
+</div>
+
+<h2>Terminal Commands</h2>
+
+<table>
+  <tr><th>Command</th><th>Agent</th><th>Description</th></tr>
+  <tr><td><code>/help</code></td><td></td><td>Show all commands</td></tr>
+  <tr><td><code>/schema [table]</code></td><td><span class="tag blue">Schema</span></td><td>Browse tables and columns</td></tr>
+  <tr><td><code>/reports [id]</code></td><td><span class="tag green">Report</span></td><td>List or view report definitions</td></tr>
+  <tr><td><code>/sql &lt;id&gt;</code></td><td><span class="tag purple">SQL</span></td><td>Generate SQL for a report</td></tr>
+  <tr><td><code>/validate &lt;id&gt;</code></td><td><span class="tag blue">Validator</span></td><td>Check report YAML correctness</td></tr>
+  <tr><td><code>/hedis &lt;question&gt;</code></td><td><span class="tag green">Domain</span></td><td>Query HEDIS specs</td></tr>
+  <tr><td><code>/plan &lt;task&gt;</code></td><td><span class="tag purple">Planner</span></td><td>Break down a task into steps</td></tr>
+  <tr><td><code>/discover</code></td><td><span class="tag blue">Discovery</span></td><td>Connect to DB and discover schema</td></tr>
+  <tr><td><code>/compare</code></td><td><span class="tag green">Compare</span></td><td>Diff PBI vs SQL data</td></tr>
+  <tr><td><code>/skills</code></td><td></td><td>Browse skills library</td></tr>
+  <tr><td><code>/health</code></td><td></td><td>Backend status</td></tr>
+  <tr><td><code>/clear</code></td><td></td><td>Clear terminal</td></tr>
+</table>
+<p>Anything without a <code>/</code> prefix is sent to the AI chat.</p>
+
+<h2>Terminal Examples</h2>
+
+<div class="card">
+  <h3>🏥 Ask about HEDIS</h3>
+<pre>❯ /hedis What measures are inverted?
+❯ /hedis CBP
+❯ /hedis What are the exclusions?
+❯ /hedis What are the standard slicers?</pre>
+</div>
+
+<div class="card">
+  <h3>🔍 Validate a Report</h3>
+<pre>❯ /validate measurelist
+
+🔍 Validator Agent — measurelist
+  ✓ [template_refs] All 17 template_refs valid
+  ✓ [group_by] group_by defined with 16 columns
+  ✓ [slicers] All 11 standard slicers present
+  ✓ [composite_key] Composite key: Measures + Submission
+  ✓ [fixed_filters] 3 fixed filters defined
+
+  Result: 5 passed · 0 errors · 0 warnings</pre>
+</div>
+
+<div class="card">
+  <h3>📋 Plan a New Report</h3>
+<pre>❯ /plan Create a Provider Detail report
+
+📋 Planner Agent — ProviderDetail
+  Step 1: Identify fields for ProviderDetail report from HEDIS spec
+  Step 2: Map fields to field_templates (21 available)
+  Step 3: Set group_by: [Measures, Submission, Provider Group, Provider Name]
+  Step 4: Set composite_key
+  Step 5: Add 11 standard slicers + any report-specific ones
+  ...
+  Ready to execute? Type "yes" or modify steps.</pre>
+</div>
+
+<div class="card">
+  <h3>🔌 Discover Schema</h3>
+<pre>❯ /discover
+
+🔌 Discovery Agent
+✓ Discovered 9 tables, 76 columns
+  ✓ factqualityreport
+  ✓ factQualityReport_Filters
+  ✓ measuredetails
+  ...
+
+Enrichment:
+  64 from column mappings cache
+  0 enriched by Ollama
+  0 rule-based fallback</pre>
+</div>
+
+<h2>Skills Library</h2>
+<p>All knowledge is stored as YAML files in the <code>skills/</code> directory:</p>
+
+<table>
+  <tr><th>Directory</th><th>Content</th></tr>
+  <tr><td><code>skills/schema/</code></td><td>Table definitions — columns, types, relationships, business metadata</td></tr>
+  <tr><td><code>skills/domain/</code></td><td>HEDIS foundation, technical spec, column mappings, join patterns</td></tr>
+  <tr><td><code>skills/joins/</code></td><td>SQL JOIN definitions</td></tr>
+  <tr><td><code>skills/reports/</code></td><td>Report definitions — fields, slicers, validations</td></tr>
+</table>
+
+<h2>Schema Discovery Pipeline</h2>
+<p>When you run <code>/discover</code>, each column is enriched in this order:</p>
+
+<div class="steps">
+  <div class="step">
+    <h3>Column Mappings Cache</h3>
+    <p>Check <code>column_mappings.yaml</code> for an exact match. Instant, no AI needed. Covers all known HEDIS RDW columns.</p>
+  </div>
+  <div class="step">
+    <h3>Ollama Enrichment</h3>
+    <p>For unknown columns, Ollama generates metadata using the HEDIS tech spec + few-shot examples + sample data from the column.</p>
+  </div>
+  <div class="step">
+    <h3>Rule-Based Fallback</h3>
+    <p>If Ollama is unavailable, infers metadata from column name patterns and data types.</p>
+  </div>
+  <div class="step">
+    <h3>Cache Update</h3>
+    <p>New Ollama results are saved to the cache for next time.</p>
+  </div>
+</div>
+
+<h2>Report Validation</h2>
+<p>The <code>/validate</code> command checks:</p>
+<ul style="color:#c9d1d9;font-size:14px">
+  <li>All <code>template_ref</code> values exist in field templates</li>
+  <li><code>group_by</code> includes all non-aggregate fields</li>
+  <li>All 11 standard HEDIS slicers are present</li>
+  <li><code>composite_key</code> columns exist in the field list</li>
+  <li>Fixed filters include <code>isRau=0</code>, <code>isUtilization=0</code>, <code>RN=1</code></li>
+</ul>
+
+<h2>Architecture</h2>
+<pre>
+sql-validator-tool/
+├── backend/              Python FastAPI backend
+│   ├── main.py           API endpoints
+│   ├── ai_chat.py        Ollama + rule-based chat
+│   ├── sql_generator.py  SQL from YAML
+│   ├── compare_engine.py PBI vs SQL diff
+│   ├── schema_enricher.py Discovery pipeline
+│   └── skills_loader.py  YAML loader
+├── skills/               Knowledge base (YAML)
+│   ├── schema/           Table definitions
+│   ├── domain/           HEDIS rules, mappings, spec
+│   ├── joins/            JOIN definitions
+│   └── reports/          Report definitions
+├── mockups/              Web UI (HTML + JS)
+├── ai1x.py              Python CLI
+└── runs/                 Comparison run history
+</pre>
+
+</div>
+</body>
+</html>

@@ -179,6 +179,235 @@ def get_runs():
             runs.append(json.load(fh))
     return {"runs": runs}
 
+# ---- Schema Edit ----
+
+class SchemaEditRequest(BaseModel):
+    table_name: str
+    column_name: Optional[str] = None
+    updates: dict
+
+@app.post("/api/schema/edit")
+def api_schema_edit(req: SchemaEditRequest):
+    import yaml
+    from pathlib import Path
+
+    tables = load_schema()
+    t = tables.get(req.table_name)
+    if not t:
+        return {"error": f"Table '{req.table_name}' not found"}
+
+    if req.column_name:
+        cols = t.get("columns", {})
+        if req.column_name not in cols:
+            return {"error": f"Column '{req.column_name}' not found in {req.table_name}"}
+        for k, v in req.updates.items():
+            cols[req.column_name][k] = v
+        # Also update column_mappings cache
+        mappings_path = Path(__file__).parent.parent / "skills" / "domain" / "column_mappings.yaml"
+        if mappings_path.exists():
+            mappings = yaml.safe_load(open(mappings_path)) or {}
+            if req.column_name not in mappings:
+                mappings[req.column_name] = {}
+            for k, v in req.updates.items():
+                if k not in ("data_type", "nullable", "pk"):
+                    mappings[req.column_name][k] = v
+            with open(mappings_path, "w") as f:
+                yaml.dump(mappings, f, default_flow_style=False, sort_keys=False)
+    else:
+        for k, v in req.updates.items():
+            t[k] = v
+
+    # Save table YAML
+    skills_dir = Path(__file__).parent.parent / "skills" / "schema"
+    # Find which file contains this table
+    for p in skills_dir.glob("*.yaml"):
+        if p.name.startswith("_"):
+            continue
+        docs = list(yaml.safe_load_all(open(p)))
+        for i, d in enumerate(docs):
+            if isinstance(d, dict) and d.get("table_name") == req.table_name:
+                if len(docs) == 1:
+                    with open(p, "w") as f:
+                        yaml.dump(t, f, default_flow_style=False, sort_keys=False)
+                else:
+                    docs[i] = t
+                    with open(p, "w") as f:
+                        for di, doc in enumerate(docs):
+                            if di > 0:
+                                f.write("---\n")
+                            yaml.dump(doc, f, default_flow_style=False, sort_keys=False)
+                target = req.column_name or "table"
+                return {"status": "saved", "table": req.table_name, "target": target, "updates": req.updates}
+
+    return {"error": "Could not find YAML file for table"}
+
+# ---- Validate Report ----
+
+@app.get("/api/validate/{report_id}")
+def api_validate(report_id: str):
+    data = load_all()
+    report = data["reports"].get(report_id)
+    if not report:
+        return {"error": f"Report '{report_id}' not found"}
+
+    domain = data["domain"]
+    templates = domain.get("field_templates", {})
+    std_slicers = domain.get("standard_slicers", [])
+    results = []
+
+    # Check template_refs exist
+    missing_refs = [f["display_name"] for f in report.get("fields", [])
+                    if f.get("template_ref") and f["template_ref"] not in templates]
+    if missing_refs:
+        results.append({"check": "template_refs", "status": "error", "msg": f"Missing templates: {', '.join(missing_refs)}"})
+    else:
+        results.append({"check": "template_refs", "status": "pass", "msg": f"All {len(report.get('fields',[]))} template_refs valid"})
+
+    # Check group_by has all non-aggregate fields
+    fields = report.get("fields", [])
+    non_agg = [f["display_name"] for f in fields if not f.get("is_aggregate") and not templates.get(f.get("template_ref",""),{}).get("is_aggregate")]
+    gb = report.get("group_by") or report.get("aggregation_levels", [{}])[0].get("group_by", []) if report.get("aggregation_levels") else []
+    if isinstance(gb, list) and non_agg:
+        results.append({"check": "group_by", "status": "pass", "msg": f"group_by defined with {len(gb)} columns"})
+    else:
+        results.append({"check": "group_by", "status": "warning", "msg": "group_by not explicitly defined"})
+
+    # Check slicers
+    report_slicers = [s["name"] for s in report.get("slicers", [])]
+    slicer_names = [s["name"] for s in std_slicers]
+    missing_slicers = [s for s in slicer_names if s not in report_slicers]
+    if missing_slicers:
+        results.append({"check": "slicers", "status": "error", "msg": f"Missing standard slicers: {', '.join(missing_slicers)}"})
+    else:
+        results.append({"check": "slicers", "status": "pass", "msg": f"All {len(slicer_names)} standard slicers present"})
+
+    # Check composite_key
+    ck = report.get("composite_key", [])
+    field_names = [f["display_name"] for f in fields]
+    bad_ck = [k for k in ck if k not in field_names]
+    if bad_ck:
+        results.append({"check": "composite_key", "status": "error", "msg": f"Key columns not in fields: {', '.join(bad_ck)}"})
+    elif ck:
+        results.append({"check": "composite_key", "status": "pass", "msg": f"Composite key: {' + '.join(ck)}"})
+    else:
+        results.append({"check": "composite_key", "status": "warning", "msg": "No composite_key defined"})
+
+    # Check fixed_filters
+    ff = report.get("fixed_filters", [])
+    if any("isRau" in f or "isRaw" in f for f in ff):
+        results.append({"check": "fixed_filters", "status": "pass", "msg": f"{len(ff)} fixed filters defined"})
+    else:
+        results.append({"check": "fixed_filters", "status": "warning", "msg": "Missing isRau=0 filter"})
+
+    passed = sum(1 for r in results if r["status"] == "pass")
+    errors = sum(1 for r in results if r["status"] == "error")
+    warnings = sum(1 for r in results if r["status"] == "warning")
+    return {"report_id": report_id, "results": results, "passed": passed, "errors": errors, "warnings": warnings}
+
+# ---- HEDIS Domain Query ----
+
+@app.post("/api/hedis")
+def api_hedis(req: ChatRequest):
+    import yaml
+    from pathlib import Path
+    spec_path = Path(__file__).parent.parent / "skills" / "domain" / "hedis_technical_spec.yaml"
+    if not spec_path.exists():
+        return {"response": "HEDIS technical spec not found."}
+
+    spec = yaml.safe_load(open(spec_path))
+    q = req.message.lower()
+    measures = spec.get("measure_catalog", {})
+    response_lines = []
+
+    if "invert" in q:
+        response_lines.append("Inverted measures (lower rate = better, numerator = Non Compliant):\n")
+        for code, m in measures.items():
+            inv = m.get("inverse") or m.get("ncqa_inverted")
+            subs = m.get("sub_measures", {})
+            for sc, sinfo in subs.items():
+                si = sinfo if isinstance(sinfo, dict) else {}
+                if si.get("inverse") or si.get("ncqa_inverted") or inv:
+                    name = si.get("name", sinfo) if isinstance(sinfo, dict) else sinfo
+                    response_lines.append(f"  {sc}  {name}")
+
+    elif "measure type" in q or "entity" in q or "count" in q:
+        types = spec.get("measure_types", {})
+        for t, info in types.items():
+            response_lines.append(f"  {t}: count {info.get('count_column','')} — {info.get('description','')}")
+            response_lines.append(f"    Examples: {', '.join(info.get('examples',[]))}")
+
+    elif "exclusion" in q:
+        excls = spec.get("required_exclusions", {})
+        for name, info in excls.items():
+            response_lines.append(f"  {name}: {info.get('description','')} — applies to: {info.get('applies_to','all')}")
+
+    elif "slicer" in q:
+        slicers = spec.get("standard_slicers", {})
+        for group, items in slicers.items():
+            response_lines.append(f"\n  {group.upper()}:")
+            for s in items:
+                response_lines.append(f"    {s['name']} → {s.get('column','')}")
+
+    elif "report type" in q:
+        rts = spec.get("report_types", {})
+        for rt, info in rts.items():
+            response_lines.append(f"  {rt}: {info.get('description','')}")
+            response_lines.append(f"    Columns: {', '.join(info.get('typical_columns',[])[0:6])}...")
+
+    else:
+        # Search measures by code
+        found = False
+        for code, m in measures.items():
+            if code.lower() in q:
+                found = True
+                response_lines.append(f"  {code} — {m['name']}")
+                response_lines.append(f"  Type: {m['measure_type']} | Ages: {m.get('ages','')} | Products: {', '.join(m.get('product_lines',[]))}")
+                response_lines.append(f"  Denominator: {m.get('denominator','')}")
+                response_lines.append(f"  Numerator: {m.get('numerator','')}")
+                response_lines.append(f"  Exclusions: {', '.join(m.get('required_exclusions',[]))}")
+                response_lines.append(f"  Star: {'Yes' if m.get('star_rated') else 'No'} | Inverse: {'Yes' if m.get('inverse') else 'No'}")
+                subs = m.get("sub_measures", {})
+                if len(subs) > 1:
+                    response_lines.append(f"  Sub-measures: {', '.join(subs.keys())}")
+        if not found:
+            response_lines.append("Try asking about: measures (e.g., 'CBP'), inversions, exclusions, slicers, measure types, report types")
+
+    return {"response": "\n".join(response_lines)}
+
+# ---- Plan ----
+
+@app.post("/api/plan")
+def api_plan(req: ChatRequest):
+    q = req.message.lower()
+    data = load_all()
+    domain = data["domain"]
+    templates = list(domain.get("field_templates", {}).keys())
+    report_types = list(domain.get("report_types", {}).keys())
+
+    # Detect report type
+    rtype = "MeasureList"
+    if "idss" in q: rtype = "IDSSHierarchy"
+    elif "provider" in q: rtype = "ProviderDetail"
+    elif "gap" in q: rtype = "GapsInCare"
+
+    type_info = domain.get("report_types", {}).get(rtype, {})
+    typical_cols = type_info.get("typical_columns", [])
+
+    steps = [
+        f"Identify fields for {rtype} report from HEDIS spec → {', '.join(typical_cols[:5])}...",
+        f"Map fields to field_templates ({len(templates)} available)",
+        f"Set group_by: {type_info.get('typical_group_by', [])}",
+        f"Set composite_key: {type_info.get('typical_group_by', [])[:2]}",
+        "Add 11 standard slicers + any report-specific ones",
+        "Add fixed_filters: isRau=0, isUtilization=0, RN=1",
+        "Add cross-field validations (Compliant <= Denominator, etc.)",
+        f"Save as skills/reports/{rtype.lower()}.yaml",
+        f"Validate with /validate {rtype.lower()}",
+        f"Generate SQL with /sql {rtype.lower()}",
+    ]
+
+    return {"report_type": rtype, "steps": steps}
+
 # ---- Schema Discovery from Live DB ----
 
 class DiscoverRequest(BaseModel):
@@ -189,12 +418,141 @@ class DiscoverRequest(BaseModel):
     database: str = "HEDIS_RDW"
     schemas: str = "dbo"
 
+class ListTablesRequest(BaseModel):
+    host: str = "localhost"
+    port: int = 3306
+    user: str = "root"
+    password: str = ""
+    database: str = "HEDIS_RDW"
+
+@app.post("/api/list-objects")
+def api_list_objects(req: ListTablesRequest):
+    """Step 1: Connect and list all database objects without generating YAMLs."""
+    try:
+        import pymysql
+    except ImportError:
+        return {"error": "pymysql not installed"}
+    try:
+        conn = pymysql.connect(host=req.host, port=req.port, user=req.user,
+                               password=req.password, database=req.database)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT TABLE_NAME, TABLE_TYPE, TABLE_ROWS, TABLE_COMMENT
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = %s
+            ORDER BY TABLE_TYPE, TABLE_NAME
+        """, (req.database,))
+        objects = []
+        for name, ttype, rows, comment in cur.fetchall():
+            # Get column count
+            cur.execute("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s", (req.database, name))
+            col_count = cur.fetchone()[0]
+            objects.append({
+                "name": name,
+                "type": "VIEW" if ttype == "VIEW" else "TABLE",
+                "rows": rows or 0,
+                "columns": col_count,
+                "comment": comment or "",
+            })
+        conn.close()
+        return {"objects": objects, "total": len(objects), "database": req.database}
+    except Exception as e:
+        return {"error": str(e)}
+
+class GenerateRequest(BaseModel):
+    host: str = "localhost"
+    port: int = 3306
+    user: str = "root"
+    password: str = ""
+    database: str = "HEDIS_RDW"
+    schemas: str = "dbo"
+    selected_tables: list
+
+@app.post("/api/generate-schema")
+def api_generate_schema(req: GenerateRequest):
+    """Step 2: Generate YAMLs only for selected tables."""
+    try:
+        import pymysql
+    except ImportError:
+        return {"error": "pymysql not installed"}
+    from schema_enricher import enrich_table
+    try:
+        conn = pymysql.connect(host=req.host, port=req.port, user=req.user,
+                               password=req.password, database=req.database)
+        cur = conn.cursor()
+        results = []
+        stats = {"cache_hits": 0, "ollama_hits": 0, "fallback_hits": 0}
+
+        for tname in req.selected_tables:
+            cur.execute("SELECT TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s", (req.database, tname))
+            row = cur.fetchone()
+            trows = row[0] if row else 0
+
+            cur.execute("""
+                SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s
+                ORDER BY ORDINAL_POSITION
+            """, (req.database, tname))
+
+            raw_columns = {}
+            for cname, ctype, nullable, ckey in cur.fetchall():
+                raw_columns[cname] = {"data_type": ctype.upper(), "nullable": nullable == "YES", "pk": ckey == "PRI"}
+
+            sample_data = {}
+            for cname in list(raw_columns.keys())[:30]:
+                try:
+                    cur.execute(f"SELECT DISTINCT `{cname}` FROM `{tname}` WHERE `{cname}` IS NOT NULL LIMIT 10")
+                    sample_data[cname] = [str(r[0]) for r in cur.fetchall()]
+                except Exception:
+                    pass
+
+            enriched = enrich_table(tname, raw_columns, row_count=trows, sample_data=sample_data)
+
+            es = enriched.get("enrichment_stats", {})
+            stats["cache_hits"] += es.get("cache_hits", 0)
+            stats["ollama_hits"] += es.get("ollama_hits", 0)
+            stats["fallback_hits"] += es.get("fallback_hits", 0)
+
+            # Save YAML
+            import yaml
+            from pathlib import Path
+            save_data = {k: v for k, v in enriched.items() if k != "enrichment_stats"}
+            filepath = Path(__file__).parent.parent / "skills" / "schema" / f"{tname.lower()}.yaml"
+            with open(filepath, "w") as f:
+                yaml.dump(save_data, f, default_flow_style=False, sort_keys=False)
+
+            results.append({"table": tname, "columns": len(raw_columns), "stats": es})
+
+        conn.close()
+        return {"results": results, "total": len(results), "enrichment": stats}
+    except Exception as e:
+        return {"error": str(e)}
+
+# ---- Full Schema Edit (add/remove sections, fields, values) ----
+
+class FullEditRequest(BaseModel):
+    table_name: str
+    yaml_data: dict
+
+@app.post("/api/schema/save")
+def api_schema_save(req: FullEditRequest):
+    """Save complete table YAML (for full editor)."""
+    import yaml
+    from pathlib import Path
+    filepath = Path(__file__).parent.parent / "skills" / "schema" / f"{req.table_name.lower()}.yaml"
+    with open(filepath, "w") as f:
+        yaml.dump(req.yaml_data, f, default_flow_style=False, sort_keys=False)
+    return {"status": "saved", "table": req.table_name}
+
 @app.post("/api/discover")
 def api_discover(req: DiscoverRequest):
     try:
         import pymysql
     except ImportError:
         return {"error": "pymysql not installed. Run: pip install pymysql"}
+
+    from schema_enricher import enrich_table
 
     try:
         conn = pymysql.connect(host=req.host, port=req.port, user=req.user,
@@ -205,60 +563,66 @@ def api_discover(req: DiscoverRequest):
         cur.execute("SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s", (req.database,))
         tables_raw = cur.fetchall()
 
-        tables = {}
+        enriched_tables = {}
         total_cols = 0
+        stats = {"cache_hits": 0, "ollama_hits": 0, "fallback_hits": 0}
+
         for tname, trows in tables_raw:
+            # Get columns
             cur.execute("""
-                SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, COLUMN_COMMENT
+                SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY
                 FROM information_schema.COLUMNS
                 WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s
                 ORDER BY ORDINAL_POSITION
             """, (req.database, tname))
             cols_raw = cur.fetchall()
 
-            columns = {}
-            for cname, dtype, ctype, nullable, ckey, cdefault, ccomment in cols_raw:
-                columns[cname] = {
+            raw_columns = {}
+            for cname, ctype, nullable, ckey in cols_raw:
+                raw_columns[cname] = {
                     "data_type": ctype.upper(),
                     "nullable": nullable == "YES",
                     "pk": ckey == "PRI",
-                    "fk": None,
-                    "index": ckey if ckey else None,
-                    "description": ccomment or "",
                 }
                 total_cols += 1
 
-            # Detect classification
-            classification = "dimension"
-            tl = tname.lower()
-            if "fact" in tl: classification = "fact"
-            elif "dim" in tl: classification = "dimension"
-            elif "cutpoint" in tl or "mapping" in tl: classification = "lookup"
+            # Get sample data (10 distinct values per column)
+            sample_data = {}
+            for cname in list(raw_columns.keys())[:30]:
+                try:
+                    cur.execute(f"SELECT DISTINCT `{cname}` FROM `{tname}` WHERE `{cname}` IS NOT NULL LIMIT 10")
+                    sample_data[cname] = [str(r[0]) for r in cur.fetchall()]
+                except Exception:
+                    pass
 
-            tables[tname] = {
-                "table_name": tname,
-                "schema": req.schemas,
-                "database": req.database,
-                "classification": classification,
-                "description": "",
-                "row_count_approx": trows or 0,
-                "columns": columns,
-                "grain": {"description": "", "columns": [c for c,v in columns.items() if v["pk"]]},
-            }
+            # Enrich with cache → Ollama → fallback
+            enriched = enrich_table(tname, raw_columns, row_count=trows, sample_data=sample_data)
+            enriched_tables[tname] = enriched
+
+            es = enriched.get("enrichment_stats", {})
+            stats["cache_hits"] += es.get("cache_hits", 0)
+            stats["ollama_hits"] += es.get("ollama_hits", 0)
+            stats["fallback_hits"] += es.get("fallback_hits", 0)
 
         conn.close()
 
-        # Save discovered schema as YAML
+        # Save enriched schema as YAML
         import yaml
         from pathlib import Path
         skills_dir = Path(__file__).parent.parent / "skills" / "schema"
-        discovered_path = skills_dir / "_discovered.yaml"
-        with open(discovered_path, "w") as f:
-            for tname, tdata in tables.items():
-                yaml.dump(tdata, f, default_flow_style=False, sort_keys=False)
-                f.write("---\n")
+        for tname, tdata in enriched_tables.items():
+            # Remove enrichment_stats before saving
+            save_data = {k: v for k, v in tdata.items() if k != "enrichment_stats"}
+            filepath = skills_dir / f"{tname.lower()}.yaml"
+            with open(filepath, "w") as f:
+                yaml.dump(save_data, f, default_flow_style=False, sort_keys=False)
 
-        return {"tables_count": len(tables), "columns_count": total_cols, "tables": list(tables.keys())}
+        return {
+            "tables_count": len(enriched_tables),
+            "columns_count": total_cols,
+            "tables": list(enriched_tables.keys()),
+            "enrichment": stats,
+        }
 
     except Exception as e:
         return {"error": str(e)}
@@ -369,4 +733,5 @@ def health():
         "reports": len(data["reports"]),
         "hedis_measures": len(data["domain"].get("measures", {})),
         "field_templates": len(data["domain"].get("field_templates", {})),
+        "llm": "llama3.2-vision (Ollama · localhost:11434)",
     }

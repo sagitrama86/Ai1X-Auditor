@@ -7,12 +7,12 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
-.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;z-index:10}
 .sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
-.sidebar-nav{flex:1;padding:12px}
+.sidebar-nav{flex:1;padding:12px;overflow-y:auto}
 .nav-section{margin-bottom:20px}
 .nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:14px;transition:all .15s}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:13px;transition:all .15s;text-decoration:none}
 .nav-item:hover{background:#1f2937}
 .nav-item.active{background:#1f6feb22;color:#58a6ff}
 .sidebar-footer{padding:16px;border-top:1px solid #30363d}
@@ -75,15 +75,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="sidebar-nav">
     <div class="nav-section"><div class="nav-section-title">Main</div>
       <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
-      <div class="nav-item"onclick="location='16-schema.html'">🔍 Schema Explorer</div><div class="nav-item"onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
+      <div class="nav-item" onclick="location='02-connect.html'">⚙️ Settings</div>
+      <div class="nav-item" onclick="location='15-skills-library.html'">🔧 Skills Library</div></div>
     <div class="nav-section"><div class="nav-section-title">Generate</div>
-      <div class="nav-item" onclick="location='06-ai-chat.html'">💬 AI Chat</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">🖥️ AI1X CLI</div>
       <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
       <div class="nav-item" onclick="location='07-generate-sql.html'">🛢️ Generate SQL</div>
       <div class="nav-item" onclick="location='10-compare.html'">⚖️ Compare</div>
-      <div class="nav-item active">📜 Run History</div></div>
+      <div class="nav-item active" onclick="location='14-run-history.html'">📜 Run History</div></div>
+    <div class="nav-section"><div class="nav-section-title">Info</div>
+      <div class="nav-item" onclick="location='17-user-guide.html'">📖 User Guide</div></div>
   </div>
-  <div class="nav-section"><div class="nav-section-title">Info</div><div class="nav-item" onclick="location='17-about.html'">ℹ️ About</div></div></div><div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW — 23 tables</div></div>
+  <div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
 </div>
 <div class="main">
   <!-- Active Release Bar -->
