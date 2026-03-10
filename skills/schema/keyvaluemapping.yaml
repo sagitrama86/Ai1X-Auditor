@@ -1,0 +1,68 @@
+version: 1.0
+table_name: keyvaluemapping
+schema: dbo
+database: HEDIS_RDW
+classification: lookup
+description: ''
+domain: Quality Reporting
+subject_area: HEDIS
+row_count_approx: 6
+grain:
+  description: ''
+  columns: &id001
+  - KeyName
+  - ADDITIONALKEY1
+  - ADDITIONALKEY2
+  - SubModuleName
+  composite_primary_key: *id001
+joins_with:
+- table: factqualityreport
+  join_type: LEFT
+  'on': []
+  on_expression: 'KVM.ADDITIONALKEY2 = SUBSTRING(F.MeasurementYear, 1, 4) AND KVM.ADDITIONALKEY1
+    = F.KEYVALUEMEASUREID AND KVM.KeyName = F.submeasurecode AND KVM.SubModuleName
+    = ''Measure_Merge''
+
+    '
+  relationship: many:0..1
+  purpose: "Measure merging \u2014 old codes to new"
+  note: "LEFT JOIN \u2014 most measures are not merged"
+columns:
+  KeyName:
+    business_name: Key Name
+    semantic_role: code
+    description: "Original measure code \u2014 matches factqualityreport.submeasurecode"
+    data_type: VARCHAR(50)
+    nullable: false
+    pk: true
+  KEYVALUE:
+    business_name: Key Value
+    semantic_role: code
+    description: "Mapped/merged measure code \u2014 replaces original in display when\
+      \ NOT NULL"
+    data_type: VARCHAR(50)
+    nullable: true
+    pk: false
+  ADDITIONALKEY1:
+    business_name: Additional Key 1
+    semantic_role: lookup
+    description: Maps to keyvaluemeasureid
+    data_type: VARCHAR(50)
+    nullable: false
+    pk: true
+  ADDITIONALKEY2:
+    business_name: Additional Key 2
+    semantic_role: lookup
+    description: Maps to measurement year (first 4 chars)
+    data_type: VARCHAR(50)
+    nullable: false
+    pk: true
+  SubModuleName:
+    business_name: Sub Module Name
+    semantic_role: code
+    categorical: true
+    business_rules:
+    - Only rows with SubModuleName = 'Measure_Merge' are used in quality reports
+    data_type: VARCHAR(50)
+    nullable: false
+    pk: true

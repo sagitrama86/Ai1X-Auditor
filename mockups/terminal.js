@@ -338,5 +338,7 @@ inp.addEventListener('keydown',async e=>{
   }
 });
 
-document.addEventListener('click',()=>inp.focus());
+document.addEventListener('click',e=>{
+  if(!window.getSelection().toString())inp.focus();
+});
 banner();

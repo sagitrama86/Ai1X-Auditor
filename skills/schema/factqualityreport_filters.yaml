@@ -1,310 +1,168 @@
-# ============================================================
-# Table: factQualityReport_Filters
-# Migrated to v1.0 template — 2026-03-09
-# ============================================================
-
 version: 1.0
-
-# --- Table Identity ---
 table_name: factQualityReport_Filters
 schema: dbo
 database: HEDIS_RDW
-business_name: Quality Report Filters
 classification: fact
-description: >
-  Companion filter table to factqualityreport. Contains attribution model
-  details, provider assignments, product/plan information, and subnetwork
-  data. Joined 1:1 on (factssui, SubmissionId). Separated for performance.
-
-# --- Ownership & Governance ---
+description: ''
 domain: Quality Reporting
 subject_area: HEDIS
-business_purpose: >
-  Holds attribution-related columns needed only when filtering or displaying
-  provider/product/plan details. Keeps the main fact table lean.
-data_owner:
-data_steward:
-pii_present: false
-tags: [hedis, quality, filters, attribution, fact]
-
-# --- Volume & Refresh ---
-row_count_approx: 4523891
-refresh_frequency:
-load_strategy:
-
-# --- AI Guidance ---
-table_intent:
-  ai_primary_usage: [reporting, analytics]
-  typical_filters: [attributionmodelcode, businessgroupcode]
-  typical_grouping: [Subnetwork, assignedprovidergroupname, productname]
-  query_warnings:
-    - "Always join to factqualityreport first — this is a companion table"
-    - "assignedprovidername uses '-1' as sentinel for unknown — handle with CASE"
-    - "Provider/subnetwork columns only meaningful when attributionmodelcode matches selected Attribute Type"
-  join_priority_tables: [factqualityreport]
-  common_business_questions:
-    - "Which provider group is a member attributed to?"
-    - "What product/health plan is the member enrolled in?"
-    - "What is the subnetwork breakdown?"
-
-# --- Grain ---
+row_count_approx: 2993
 grain:
-  description: "Exact same grain as factqualityreport — 1:1 relationship"
-  columns: [factssui, SubmissionId]
-  composite_primary_key: [factssui, SubmissionId]
-  natural_key: []
-  surrogate_key:
-  uniqueness_guarantee: true
-  deduplication_logic:
-
-# --- Joins ---
+  description: ''
+  columns: &id001
+  - factssui
+  - SubmissionId
+  composite_primary_key: *id001
 joins_with:
-  - table: factqualityreport
-    join_type: INNER
-    on: [factssui, SubmissionId]
-    relationship: "1:1"
-    purpose: "Primary companion table"
-
-# --- Problems ---
-problems_and_suggestions:
-  - problem: "assignedprovidername stores '-1' as a sentinel value instead of NULL"
-    impact: "Requires CASE logic: WHEN assignedprovidername = '-1' THEN 'Unknown'"
-    suggestion: "Use NULL instead of '-1' for missing provider names"
-
-  - problem: "Attribution model logic is embedded in queries, not in the data"
-    impact: "Every query must check attributionmodelcode to decide provider/subnetwork display"
-    suggestion: "Pre-compute the resolved values in ETL"
-
-# ============================================================
-# COLUMNS
-# ============================================================
+- table: factqualityreport
+  join_type: INNER
+  'on': []
+  on_expression: ''
+  relationship: '1:1'
+  purpose: Attribution model details, provider assignments, product/plan info
+  note: ''
 columns:
-
   factssui:
     business_name: Fact SSUI
-    description: "Join key to factqualityreport — 1:1"
     semantic_role: identifier
+    aggregatable: false
+    aggregation_behavior: non_additive
+    description: "Surrogate key \u2014 uniquely identifies a member-measure-clinicalstatus\
+      \ combination"
     data_type: BIGINT
     nullable: false
     pk: true
-    fk: "factqualityreport.factssui"
-    index: "Clustered index on (factssui, SubmissionId)"
-    aggregatable: false
-    aggregation_behavior: non_additive
-    filterable: false
-    groupable: false
-    same_in_other_tables:
-      - {table: factqualityreport, column: factssui}
-
   SubmissionId:
     business_name: Submission ID
-    description: "Join key to factqualityreport — 1:1"
     semantic_role: identifier
+    aggregatable: false
+    aggregation_behavior: non_additive
+    filterable: true
+    groupable: true
+    categorical: true
     data_type: INT
     nullable: false
     pk: true
-    fk: "factqualityreport.SubmissionId"
-    index: "Clustered index on (factssui, SubmissionId)"
-    aggregatable: false
-    aggregation_behavior: non_additive
-    filterable: false
-    groupable: false
-    same_in_other_tables:
-      - {table: factqualityreport, column: SubmissionId}
-
   productname:
     business_name: Products
-    description: "Product/plan name within a Line of Business"
     semantic_role: dimension
-    synonyms: [product, plan name]
-    data_type: VARCHAR(200)
-    nullable: true
-    pk: false
-    aggregatable: false
-    aggregation_behavior: non_additive
     filterable: true
     sortable: true
     groupable: true
     categorical: true
-    high_cardinality: false
-
+    synonyms:
+    - product
+    - plan name
+    data_type: VARCHAR(200)
+    nullable: true
+    pk: false
   healthplanname:
     business_name: Health Plans
-    description: "Health plan the member is enrolled in"
     semantic_role: dimension
-    synonyms: [health plan, plan]
-    data_type: VARCHAR(200)
-    nullable: true
-    pk: false
-    aggregatable: false
-    aggregation_behavior: non_additive
     filterable: true
     sortable: true
     groupable: true
     categorical: true
-    high_cardinality: false
-
+    synonyms:
+    - health plan
+    - plan
+    data_type: VARCHAR(200)
+    nullable: true
+    pk: false
   attributionmodelcode:
     business_name: Attribution Model
-    description: "Attribution model used for provider assignment"
     semantic_role: code
-    synonyms: [attribute type, attribution]
-    data_type: VARCHAR(20)
-    nullable: true
-    pk: false
-    aggregatable: false
-    aggregation_behavior: non_additive
     filterable: true
     groupable: true
     categorical: true
-    high_cardinality: false
     business_rules:
-      - "When matches user-selected Attribute Type slicer, show actual provider/subnetwork"
-      - "Otherwise show 'Unknown'"
-
+    - When matches user-selected Attribute Type, show actual provider/subnetwork
+    - Otherwise show 'Unknown'
+    synonyms:
+    - attribute type
+    - attribution
+    data_type: VARCHAR(20)
+    nullable: true
+    pk: false
   assignedprovidergroupname:
     business_name: Provider Group
-    description: "Provider group name from attribution"
     semantic_role: dimension
-    synonyms: [provider group]
-    data_type: VARCHAR(200)
-    nullable: true
-    pk: false
-    aggregatable: false
-    aggregation_behavior: non_additive
     filterable: true
     sortable: true
     groupable: true
     categorical: true
-    business_rules: ["Only meaningful when attributionmodelcode matches selected Attribute Type"]
-
+    business_rules:
+    - Only meaningful when attributionmodelcode matches selected Attribute Type
+    data_type: VARCHAR(200)
+    nullable: true
+    pk: false
   assignedprovidername:
     business_name: Provider Name
-    description: "Assigned provider full name"
     semantic_role: dimension
-    synonyms: [provider]
+    filterable: true
+    sortable: true
+    groupable: true
+    business_rules:
+    - 'Sentinel value: ''-1'' means unknown. Handle with CASE.'
     data_type: VARCHAR(200)
     nullable: true
     pk: false
-    aggregatable: false
-    aggregation_behavior: non_additive
-    filterable: true
-    sortable: true
-    groupable: true
-    categorical: true
-    constraints: "Sentinel value: '-1' means unknown"
-    business_rules: ["WHEN assignedprovidername = '-1' THEN 'Unknown'"]
-
   assignedproviderfname:
     business_name: Provider First Name
-    description: "Provider first name"
     semantic_role: dimension
+    business_rules:
+    - 'Sentinel value: ''-1'' means unknown'
     data_type: VARCHAR(100)
     nullable: true
     pk: false
-    constraints: "Sentinel value: '-1' means unknown"
-    business_rules: ["Same sentinel issue as assignedprovidername"]
-
   assignedproviderlname:
     business_name: Provider Last Name
-    description: "Provider last name"
     semantic_role: dimension
+    business_rules:
+    - 'Used with fname to construct: ''lname, fname'''
     data_type: VARCHAR(100)
     nullable: true
     pk: false
-    business_rules: ["Used with fname to construct: 'lname, fname'"]
-
   Subnetwork:
     business_name: Entity / Subnetwork
-    description: "Subnetwork/entity name"
     semantic_role: dimension
-    synonyms: [entity, subnetwork]
-    data_type: VARCHAR(100)
-    nullable: true
-    pk: false
-    aggregatable: false
-    aggregation_behavior: non_additive
     filterable: true
     sortable: true
     groupable: true
     categorical: true
-    business_rules: ["Only meaningful when attributionmodelcode matches selected Attribute Type"]
-
+    business_rules:
+    - Only meaningful when attributionmodelcode matches selected Attribute Type
+    synonyms:
+    - entity
+    - subnetwork
+    data_type: VARCHAR(100)
+    nullable: true
+    pk: false
   businessgroupcode:
     business_name: Business Group
-    description: "Business group code"
     semantic_role: dimension
-    synonyms: [business group]
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    synonyms:
+    - business group
     data_type: VARCHAR(20)
     nullable: true
     pk: false
-    filterable: true
-    sortable: true
-    groupable: true
-    categorical: true
-
   assignedprovidergroupid:
     business_name: Provider Group ID
-    description: "Numeric ID for the assigned provider group"
     semantic_role: lookup
+    aggregatable: false
+    description: Numeric ID for the assigned provider group
     data_type: INT
     nullable: true
     pk: false
-    aggregatable: false
-    filterable: false
-    groupable: false
-
   assignedproviderid:
     business_name: Provider ID
-    description: "Numeric ID for the assigned provider"
     semantic_role: lookup
+    aggregatable: false
+    description: Numeric ID for the assigned provider
     data_type: INT
     nullable: true
     pk: false
-    aggregatable: false
-    filterable: false
-    groupable: false
-
-# ============================================================
-# VALUE DICTIONARY
-# ============================================================
-value_dictionary:
-  assignedprovidername:
-    "-1": "Unknown"
-
-# ============================================================
-# COLUMN RELATIONSHIPS
-# ============================================================
-column_relationships:
-  - column_a: attributionmodelcode
-    column_b: assignedprovidergroupname
-    relationship_type: dependency
-    rule: "Provider group only meaningful when attribution model matches selected type"
-
-  - column_a: attributionmodelcode
-    column_b: Subnetwork
-    relationship_type: dependency
-    rule: "Subnetwork only meaningful when attribution model matches selected type"
-
-  - column_a: assignedproviderfname
-    column_b: assignedproviderlname
-    relationship_type: derived
-    rule: "Full name = 'lname, fname'"
-
-# ============================================================
-# PERFORMANCE
-# ============================================================
-performance:
-  large_table: true
-  recommended_filters: []
-  partition_strategy:
-    column:
-  clustering_columns: []
-
-security:
-  row_level_security:
-    enabled: false
-    column:
-  masking_rules: {}
-
-sample_rows: []

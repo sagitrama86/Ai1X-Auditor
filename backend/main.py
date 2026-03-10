@@ -22,6 +22,12 @@ MOCKUPS_DIR = os.path.join(os.path.dirname(__file__), "..", "mockups")
 if os.path.exists(MOCKUPS_DIR):
     app.mount("/ui", StaticFiles(directory=MOCKUPS_DIR, html=True), name="ui")
 
+from fastapi.responses import RedirectResponse
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/ui/05-home-loaded.html")
+
 # ---- Schema APIs ----
 
 @app.get("/api/schema")

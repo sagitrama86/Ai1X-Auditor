@@ -1,0 +1,110 @@
+version: 1.0
+table_name: qualitycutpoints
+schema: dbo
+database: HEDIS_RDW
+classification: lookup
+description: ''
+domain: Quality Reporting
+subject_area: HEDIS
+row_count_approx: 25
+grain:
+  description: ''
+  columns: &id001
+  - organizationId
+  - ProductCategoryId
+  - domainid
+  - MeasurementYear
+  - SubMeasureCode
+  composite_primary_key: *id001
+joins_with:
+- table: factqualityreport
+  join_type: LEFT
+  'on': []
+  on_expression: ''
+  relationship: many:1
+  purpose: NCQA percentile cutpoints for ranking
+  note: "LEFT JOIN \u2014 not all measure+org combinations have cutpoints"
+columns:
+  organizationId:
+    business_name: Organization ID
+    semantic_role: identifier
+    aggregatable: false
+    data_type: INT
+    nullable: false
+    pk: true
+  ProductCategoryId:
+    business_name: Product Category ID
+    semantic_role: identifier
+    aggregatable: false
+    data_type: INT
+    nullable: false
+    pk: true
+  domainid:
+    business_name: Domain ID
+    semantic_role: identifier
+    aggregatable: false
+    data_type: INT
+    nullable: false
+    pk: true
+  MeasurementYear:
+    business_name: Measurement Year
+    semantic_role: date
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    format: YYYY or YYYY-YYYY
+    business_rules:
+    - SUBSTRING(MeasurementYear, 1, 4) extracts 4-digit year for joins
+    synonyms:
+    - year
+    - reporting year
+    data_type: VARCHAR(4)
+    nullable: false
+    pk: true
+  SubMeasureCode:
+    business_name: Sub-Measure Code
+    semantic_role: code
+    filterable: true
+    groupable: true
+    categorical: true
+    data_type: VARCHAR(20)
+    nullable: false
+    pk: true
+  Cutpoint3:
+    business_name: 25th Percentile Cutpoint
+    semantic_role: metric
+    aggregatable: false
+    aggregation_behavior: non_additive
+    unit_of_measure: percentage
+    description: Compliance % below this = <25th percentile
+    data_type: DECIMAL(5,2)
+    nullable: true
+    pk: false
+  Cutpoint5:
+    business_name: 50th Percentile Cutpoint
+    semantic_role: metric
+    aggregatable: false
+    aggregation_behavior: non_additive
+    unit_of_measure: percentage
+    data_type: DECIMAL(5,2)
+    nullable: true
+    pk: false
+  Cutpoint7:
+    business_name: 75th Percentile Cutpoint
+    semantic_role: metric
+    aggregatable: false
+    aggregation_behavior: non_additive
+    unit_of_measure: percentage
+    data_type: DECIMAL(5,2)
+    nullable: true
+    pk: false
+  Cutpoint8:
+    business_name: 90th Percentile Cutpoint
+    semantic_role: metric
+    aggregatable: false
+    aggregation_behavior: non_additive
+    unit_of_measure: percentage
+    data_type: DECIMAL(5,2)
+    nullable: true
+    pk: false

@@ -1,289 +1,155 @@
-# ============================================================
-# Table: measuredetails
-# Migrated to v1.0 template — 2026-03-09
-# ============================================================
-
 version: 1.0
-
-# --- Table Identity ---
 table_name: measuredetails
 schema: dbo
 database: HEDIS_RDW
-business_name: Measure Details
 classification: dimension
-description: >
-  Dimension table containing HEDIS measure definitions. One row per measure.
-  Contains measure codes, names, types, domains, categories, and behavioral
-  flags (star indicator, inverse flag, NCQA inverted flag).
-
-# --- Ownership & Governance ---
+description: ''
 domain: Quality Reporting
 subject_area: HEDIS
-business_purpose: >
-  Primary reference for understanding what each measure means and how
-  its compliance should be calculated. Drives calculation branching logic.
-data_owner:
-data_steward:
-pii_present: false
-tags: [hedis, measures, dimension, reference]
-
-# --- Volume & Refresh ---
-row_count_approx: 1247
-refresh_frequency:
-load_strategy:
-
-# --- AI Guidance ---
-table_intent:
-  ai_primary_usage: [lookup, metric_calculation]
-  typical_filters: []
-  typical_grouping: [submeasurecode, measurecode, measuretype]
-  query_warnings:
-    - "Two join paths from factqualityreport — keyvaluemeasureid (primary) vs clinicalmeasureid (fallback)"
-    - "NCQAInvertedFlag and InverseFlag are DIFFERENT — see column docs"
-  join_priority_tables: [factqualityreport]
-  common_business_questions:
-    - "What type of measure is this (Visit/Event/Patient-Process)?"
-    - "Is this measure inverted?"
-    - "Which NCQA domain does this measure belong to?"
-
-# --- Grain ---
+row_count_approx: 18
 grain:
-  description: "One row per measureid. submeasurecode is also unique."
-  columns: [measureid]
-  composite_primary_key: [measureid]
-  natural_key: [submeasurecode]
-  surrogate_key: measureid
-  uniqueness_guarantee: true
-  deduplication_logic:
-
-# --- Joins ---
+  description: ''
+  columns: &id001
+  - measureid
+  composite_primary_key: *id001
 joins_with:
-  - table: factqualityreport
-    join_type: INNER
-    on_expression: "Conditional — keyvaluemeasureid OR clinicalmeasureid"
-    relationship: "1:many"
-    purpose: "Fact table joins here to get measure metadata"
+- table: factqualityreport
+  join_type: INNER
+  'on': []
+  on_expression: '(F.keyvaluemeasureid IS NOT NULL AND F.keyvaluemeasureid = M.measureid)
+    OR (F.keyvaluemeasureid IS NULL AND F.clinicalmeasureid = M.clinicalmeasureid)
 
-# --- Problems ---
-problems_and_suggestions:
-  - problem: "Two different join paths (keyvaluemeasureid vs clinicalmeasureid)"
-    impact: "Every query must handle the conditional OR join"
-    suggestion: "Standardize on a single join key"
-
-# ============================================================
-# COLUMNS
-# ============================================================
+    '
+  relationship: many:1
+  purpose: Measure name, type, domain, category, flags
+  note: "Conditional join \u2014 keyvaluemeasureid takes precedence"
 columns:
-
   measureid:
     business_name: Measure ID
-    description: "Unique measure identifier — primary join key from factqualityreport"
     semantic_role: identifier
+    aggregatable: false
+    description: "Unique measure identifier \u2014 primary join key from factqualityreport"
     data_type: INT
     nullable: false
     pk: true
-    index: "Clustered index"
-    aggregatable: false
-    aggregation_behavior: non_additive
-    filterable: false
-    groupable: false
-    same_in_other_tables:
-      - {table: factqualityreport, column: keyvaluemeasureid, relationship: "Conditional FK"}
-
   clinicalmeasureid:
     business_name: Clinical Measure ID
-    description: "Fallback join key from factqualityreport when keyvaluemeasureid is NULL"
-    semantic_role: identifier
+    semantic_role: lookup
+    aggregatable: false
+    description: Fallback join key to measuredetails when keyvaluemeasureid is NULL
+    fk_target: measuredetails.clinicalmeasureid (conditional)
     data_type: INT
     nullable: false
     pk: false
-    index: "Non-clustered index"
-    aggregatable: false
-    aggregation_behavior: non_additive
-    same_in_other_tables:
-      - {table: factqualityreport, column: clinicalmeasureid, relationship: "Conditional FK (fallback)"}
-
   submeasurecode:
     business_name: Sub-Measure Code
-    description: "HEDIS sub-measure code (e.g., AWC-01, CBP-01, CIS-01)"
     semantic_role: code
-    synonyms: [measure code, measure, sub measure]
-    data_type: VARCHAR(20)
-    nullable: false
-    unique: true
-    pk: false
-    index: "Non-clustered index"
     aggregatable: false
-    aggregation_behavior: non_additive
     filterable: true
     sortable: true
     groupable: true
     categorical: true
-    format: "XXX-NN"
-    same_in_other_tables:
-      - {table: factqualityreport, column: submeasurecode}
-      - {table: qualitycutpoints, column: SubMeasureCode}
-
+    format: XXX-NN
+    synonyms:
+    - measure code
+    - measure
+    data_type: VARCHAR(20)
+    nullable: false
+    pk: false
   name:
     business_name: Measure Name
-    description: "Full measure name (e.g., 'Adolescent Well-Care Visits')"
     semantic_role: dimension
-    synonyms: [measure name]
+    filterable: true
+    sortable: true
+    groupable: true
+    business_rules:
+    - 'Used in Measures display: CONCAT(submeasurecode, '' '', name)'
     data_type: VARCHAR(200)
     nullable: false
     pk: false
-    aggregatable: false
-    filterable: true
-    sortable: true
-    groupable: true
-    business_rules: ["Used in Measures display: CONCAT(submeasurecode, ' ', name)"]
-
   measurecode:
     business_name: Measure Code
-    description: "Parent measure code without sub-measure number (e.g., AWC, CBP, CIS)"
     semantic_role: code
+    filterable: true
+    groupable: true
+    categorical: true
+    description: Parent measure code without sub-measure number (e.g., AWC, CBP)
     data_type: VARCHAR(10)
     nullable: false
     pk: false
-    aggregatable: false
+  measuretype:
+    business_name: Measure Type
+    semantic_role: code
     filterable: true
     groupable: true
     categorical: true
-    business_rules: ["Multiple submeasurecodes can share the same measurecode"]
-
-  measuretype:
-    business_name: Measure Type
-    description: "HEDIS measure type — determines which SSUI column to count"
-    semantic_role: code
-    synonyms: [measure type, entity type]
+    allowed_values:
+      Visit: COUNT(visitSSUI)
+      Event: COUNT(eventSSUI)
+      Patient-Process: COUNT(patientSSUI)
+    business_rules:
+    - Determines counting entity for VDE/EDE/ECC/ERF
     data_type: VARCHAR(30)
     nullable: false
     pk: false
-    aggregatable: false
-    aggregation_behavior: non_additive
-    filterable: true
-    groupable: true
-    categorical: true
-    high_cardinality: false
-    allowed_values:
-      Visit: "COUNT(visitSSUI)"
-      Event: "COUNT(eventSSUI)"
-      Patient-Process: "COUNT(patientSSUI)"
-    business_rules:
-      - "Determines counting entity for VDE/EDE/ECC/ERF calculations"
-
   STARINDICATOR:
     business_name: Star Indicator
-    description: "Whether this is a CMS Star-rated measure"
     semantic_role: flag
+    categorical: true
+    allowed_values:
+      Y: Star-rated
+      null: Not star-rated
+    business_rules:
+    - '''Y'' = display with asterisk: ''AWC-01*'''
     data_type: CHAR(1)
     nullable: true
     pk: false
-    categorical: true
-    allowed_values: {"Y": "Star-rated", null: "Not star-rated"}
-    business_rules: ["'Y' = display with asterisk: 'AWC-01*'"]
-
   InverseFlag:
     business_name: Inverse Flag
-    description: "Whether lower rates are better for this measure"
     semantic_role: flag
+    categorical: true
+    allowed_values:
+      Y: Lower is better
+      N: Higher is better
+    business_rules:
+    - Affects percentile comparison direction. DIFFERENT from NCQAInvertedFlag.
     data_type: CHAR(1)
     nullable: true
     pk: false
-    categorical: true
-    allowed_values: {"Y": "Inverse — lower is better", "N": "Normal — higher is better"}
-    business_rules:
-      - "'Y' = display with '(Inverse)' suffix"
-      - "Affects percentile comparison direction"
-      - "DIFFERENT from NCQAInvertedFlag"
-
   NCQAInvertedFlag:
     business_name: NCQA Inverted Flag
-    description: "Whether NCQA inverts the numerator for compliance calculation"
     semantic_role: flag
+    categorical: true
+    allowed_values:
+      Y: Numerator = Non Compliant
+      N: Numerator = Compliant
+    business_rules:
+    - Controls which column is the numerator. DIFFERENT from InverseFlag.
     data_type: CHAR(1)
     nullable: true
     pk: false
-    categorical: true
-    allowed_values: {"Y": "Use Non Compliant as numerator", "N": "Use Compliant as numerator"}
-    business_rules:
-      - "'Y' = numerator is Act_Performance_Not_Met"
-      - "'N'/NULL = numerator is Act_Performance_Met"
-      - "DIFFERENT from InverseFlag — this controls numerator, InverseFlag controls direction"
-
   CMQDOMAIN:
     business_name: NCQA Domain
-    description: "HEDIS domain grouping (e.g., 'Effectiveness of Care')"
     semantic_role: dimension
-    synonyms: [domain, NCQA domain]
-    data_type: VARCHAR(100)
-    nullable: true
-    pk: false
     filterable: true
     sortable: true
     groupable: true
     categorical: true
-
+    synonyms:
+    - domain
+    - NCQA domain
+    data_type: VARCHAR(100)
+    nullable: true
+    pk: false
   category:
     business_name: Health Category
-    description: "Health category grouping (e.g., 'Prevention', 'Chronic', 'Behavioral Health')"
     semantic_role: dimension
-    synonyms: [health category, category]
-    data_type: VARCHAR(100)
-    nullable: true
-    pk: false
     filterable: true
     sortable: true
     groupable: true
     categorical: true
-
-# ============================================================
-# VALUE DICTIONARY
-# ============================================================
-value_dictionary:
-  measuretype:
-    Visit: "One row per visit — COUNT(visitSSUI)"
-    Event: "One row per event — COUNT(eventSSUI)"
-    Patient-Process: "One row per patient — COUNT(patientSSUI)"
-  STARINDICATOR:
-    "Y": "CMS Star-rated measure"
-  NCQAInvertedFlag:
-    "Y": "Numerator = Act_Performance_Not_Met"
-    "N": "Numerator = Act_Performance_Met"
-
-# ============================================================
-# COLUMN RELATIONSHIPS
-# ============================================================
-column_relationships:
-  - column_a: NCQAInvertedFlag
-    column_b: InverseFlag
-    relationship_type: dependency
-    rule: >
-      Together create 4-way branch:
-      NCQAInverted=Y + Inverse=N → NonCompliant numerator, normal direction;
-      NCQAInverted=Y + Inverse=Y → NonCompliant numerator, reversed direction;
-      NCQAInverted=N + Inverse=N → Compliant numerator, normal direction;
-      NCQAInverted=N + Inverse=Y → Compliant numerator, reversed direction
-
-  - column_a: measuretype
-    column_b: submeasurecode
-    relationship_type: hierarchy
-    rule: "Each submeasurecode has exactly one measuretype"
-
-# ============================================================
-# PERFORMANCE
-# ============================================================
-performance:
-  large_table: false
-  recommended_filters: []
-  partition_strategy:
-    column:
-  clustering_columns: []
-
-security:
-  row_level_security:
-    enabled: false
-    column:
-  masking_rules: {}
-
-sample_rows: []
+    synonyms:
+    - health category
+    data_type: VARCHAR(100)
+    nullable: true
+    pk: false

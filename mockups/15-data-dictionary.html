@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Data Dictionary</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:260px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;z-index:10}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:#58a6ff;border-bottom:1px solid #30363d}
+.sidebar-nav{flex:1;padding:12px;overflow-y:auto}
+.nav-section{margin-bottom:20px}
+.nav-section-title{font-size:11px;text-transform:uppercase;color:#8b949e;padding:8px 12px;letter-spacing:.5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:#c9d1d9;cursor:pointer;font-size:13px;transition:all .15s;text-decoration:none}
+.nav-item:hover{background:#1f2937}
+.nav-item.active{background:#1f6feb22;color:#58a6ff}
+.sidebar-footer{padding:16px;border-top:1px solid #30363d}
+.schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
+.main{margin-left:260px;padding:32px 40px}
+.page-header{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}
+.page-header-left h1{font-size:28px;font-weight:600;margin-bottom:8px}
+.page-header-left p{color:#8b949e;font-size:15px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.st{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px;text-align:center}
+.st-val{font-size:24px;font-weight:700;color:#58a6ff}
+.st-label{font-size:11px;color:#8b949e;margin-top:4px}
+.inp{background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e1e4e8;font-size:13px;padding:8px 12px}
+.tbl{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #30363d;border-radius:12px;overflow:hidden}
+.tbl th{text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;color:#8b949e;border-bottom:1px solid #30363d;background:#0d1117}
+.tbl td{padding:10px 14px;border-bottom:1px solid #21262d;font-size:13px}
+.tbl tbody tr{cursor:pointer;transition:background .15s}
+.tbl tbody tr:hover{background:#1f293744}
+.type-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.type-badge.fact{background:#1f6feb22;color:#58a6ff}
+.type-badge.dimension{background:#3fb95022;color:#3fb950}
+.type-badge.lookup{background:#a371f722;color:#a371f7}
+.detail{background:#161b22;border:1px solid #30363d;border-radius:12px;margin-top:16px;overflow:hidden;display:none}
+.detail.show{display:block}
+.detail-header{padding:16px 20px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between}
+.detail-header h3{font-size:16px;font-weight:600}
+.col-tbl{width:100%;border-collapse:collapse}
+.col-tbl th{text-align:left;padding:8px 14px;font-size:10px;text-transform:uppercase;color:#484f58;border-bottom:1px solid #30363d;background:#0d1117}
+.col-tbl td{padding:7px 14px;border-bottom:1px solid #21262d;font-size:12px}
+.desc-box{padding:16px 20px;font-size:13px;color:#8b949e;line-height:1.6;border-bottom:1px solid #21262d}
+.problem{padding:10px 20px;border-bottom:1px solid #21262d;font-size:12px}
+.problem-title{color:#d29922;font-weight:600}
+.problem-text{color:#8b949e;margin-top:2px}
+.edit-btn{background:none;border:1px solid #30363d;border-radius:4px;color:#58a6ff;cursor:pointer;font-size:11px;padding:2px 8px}
+.edit-btn:hover{border-color:#58a6ff}
+.add-btn{margin-top:10px;padding:6px 14px;background:transparent;border:1px dashed #30363d;border-radius:8px;color:#8b949e;font-size:12px;cursor:pointer}
+.add-btn:hover{border-color:#58a6ff;color:#58a6ff}
+.edit-form{padding:16px 20px;border-top:1px solid #30363d}
+.edit-form label{font-size:12px;color:#8b949e;display:block;margin-bottom:2px}
+.edit-form input,.edit-form select{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#e1e4e8;padding:4px 8px;font-size:12px;margin-bottom:8px}
+.edit-form .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.edit-form .cb{display:flex;align-items:center;gap:6px;padding:2px 0}
+.edit-form .cb label{display:inline;margin:0}
+.btn-save{padding:6px 14px;background:#1f6feb;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer}
+.btn-cancel{padding:6px 14px;background:transparent;color:#8b949e;border:1px solid #30363d;border-radius:6px;font-size:12px;cursor:pointer}
+.section-bar{padding:12px 20px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between}
+.section-title{font-size:13px;font-weight:600;color:#c9d1d9}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#1f6feb22;color:#58a6ff;margin:1px}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">🔷 AI1X Auditor</div>
+  <div class="sidebar-nav">
+    <div class="nav-section"><div class="nav-section-title">Main</div>
+      <div class="nav-item" onclick="location='05-home-loaded.html'">🏠 Home</div>
+      <div class="nav-item" onclick="location='02-connect.html'">🔌 Database</div>
+      <div class="nav-item" onclick="location='06-ai-chat.html'">🖥️ AI1X CLI</div></div>
+    <div class="nav-section"><div class="nav-section-title">Workspace</div>
+      <div class="nav-item active" onclick="location='15-data-dictionary.html'">📚 Data Dictionary</div>
+      <div class="nav-item" onclick="location='08-reports.html'">📄 Reports</div>
+      <div class="nav-item" onclick="location='07-generate-sql.html'">🛢️ Generate SQL</div>
+      <div class="nav-item" onclick="location='10-compare.html'">⚖️ Compare</div>
+      <div class="nav-item" onclick="location='14-run-history.html'">📜 Run History</div></div>
+    <div class="nav-section"><div class="nav-section-title">Info</div>
+      <div class="nav-item" onclick="location='17-user-guide.html'">📖 User Guide</div></div>
+  </div>
+  <div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
+</div>
+<div class="main">
+  <div class="page-header">
+    <div class="page-header-left"><h1>Data Dictionary</h1><p>Browse and edit your database definitions — tables, columns, business rules, and relationships.</p></div>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div style="margin-bottom:12px"><input class="inp" placeholder="Filter tables..." style="width:300px" id="filter" oninput="renderTables()"></div>
+  <table class="tbl"><thead><tr><th>Table</th><th>Type</th><th>Columns</th><th>Rows</th><th>Description</th></tr></thead><tbody id="tbody"></tbody></table>
+  <div class="detail" id="detail">
+    <div class="detail-header"><h3 id="detail-title"></h3><button onclick="document.getElementById('detail').classList.remove('show')" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:16px">✕</button></div>
+    <div id="detail-desc"></div>
+    <div id="detail-meta"></div>
+    <div id="detail-problems"></div>
+    <div id="detail-cols"></div>
+    <div id="detail-edit"></div>
+  </div>
+</div>
+<script>
+const API='http://localhost:8000';
+let tables=[];
+let currentTable=null;
+
+async function init(){
+  try{
+    const resp=await fetch(API+'/api/schema');
+    const data=await resp.json();
+    tables=data.tables||[];
+    const totalCols=tables.reduce((s,t)=>s+t.columns_count,0);
+    document.getElementById('stats').innerHTML=`
+      <div class="st"><div class="st-val">${data.total}</div><div class="st-label">Tables</div></div>
+      <div class="st"><div class="st-val">${totalCols}</div><div class="st-label">Columns</div></div>
+      <div class="st"><div class="st-val">${tables.filter(t=>t.classification==='fact').length}</div><div class="st-label">Fact Tables</div></div>
+      <div class="st"><div class="st-val">${tables.filter(t=>t.classification==='dimension').length}</div><div class="st-label">Dimensions</div></div>`;
+    renderTables();
+  }catch(e){
+    document.getElementById('stats').innerHTML='<div class="st" style="grid-column:span 4;color:#f85149">⚠ Cannot connect to backend. Start the server first.</div>';
+  }
+}
+
+function renderTables(){
+  const q=(document.getElementById('filter').value||'').toLowerCase();
+  const filtered=tables.filter(t=>!q||t.table_name.toLowerCase().includes(q));
+  document.getElementById('tbody').innerHTML=filtered.map(t=>`<tr onclick="showDetail('${t.table_name}')">
+    <td style="font-weight:600">${t.table_name}</td>
+    <td><span class="type-badge ${t.classification}">${(t.classification||'').toUpperCase()}</span></td>
+    <td>${t.columns_count}</td>
+    <td>${t.row_count||'—'}</td>
+    <td style="color:#8b949e;font-size:12px;max-width:300px">${(t.description||'').substring(0,80)}</td>
+  </tr>`).join('');
+}
+
+async function showDetail(name){
+  const resp=await fetch(API+'/api/schema/'+name);
+  const t=await resp.json();
+  if(t.error)return;
+  currentTable=t;
+  document.getElementById('detail').classList.add('show');
+  document.getElementById('detail-title').textContent=name+' — '+Object.keys(t.columns||{}).length+' columns';
+  document.getElementById('detail-desc').innerHTML=`<div class="desc-box">${t.description||'<em>No description</em>'}</div>`;
+
+  // Metadata
+  const grain=t.grain||{};
+  const intent=t.table_intent||{};
+  let meta='';
+  if(t.classification||t.domain||grain.description){
+    meta+='<div class="section-bar"><span class="section-title">Metadata</span></div><div style="padding:12px 20px;font-size:12px">';
+    if(t.classification)meta+=`<div style="padding:2px 0"><span style="color:#8b949e;min-width:100px;display:inline-block">Type:</span> <span class="tag">${t.classification}</span></div>`;
+    if(t.domain)meta+=`<div style="padding:2px 0"><span style="color:#8b949e;min-width:100px;display:inline-block">Domain:</span> ${t.domain}</div>`;
+    if(grain.description)meta+=`<div style="padding:2px 0"><span style="color:#8b949e;min-width:100px;display:inline-block">Grain:</span> ${grain.description}</div>`;
+    if(grain.composite_primary_key)meta+=`<div style="padding:2px 0"><span style="color:#8b949e;min-width:100px;display:inline-block">Primary Key:</span> ${grain.composite_primary_key.join(' + ')}</div>`;
+    if(intent.query_warnings)intent.query_warnings.forEach(w=>{meta+=`<div style="padding:2px 0;color:#d29922">⚠ ${w}</div>`});
+    meta+='</div>';
+  }
+  document.getElementById('detail-meta').innerHTML=meta;
+
+  // Problems
+  const probs=(t.problems_and_suggestions||[]);
+  document.getElementById('detail-problems').innerHTML=probs.map(p=>`<div class="problem"><div class="problem-title">⚠ ${p.problem}</div><div class="problem-text">💡 ${p.suggestion}</div></div>`).join('');
+
+  // Columns
+  const cols=t.columns||{};
+  let rows=Object.entries(cols).map(([cname,c],i)=>`<tr>
+    <td style="color:#484f58">${i+1}</td>
+    <td style="font-weight:500;${c.pk?'color:#d29922':''}">${cname}${c.business_name?'<br><span style="color:#484f58;font-weight:400;font-size:11px">'+c.business_name+'</span>':''}</td>
+    <td><code style="font-size:11px;background:#0d1117;padding:2px 6px;border-radius:4px">${c.data_type||'—'}</code></td>
+    <td style="color:#a371f7;font-size:11px">${c.semantic_role||'—'}</td>
+    <td>${c.nullable===false?'<span style="color:#f85149">✕</span>':'<span style="color:#3fb950">✓</span>'}</td>
+    <td style="font-size:11px;color:${c.pk?'#d29922':c.fk?'#a371f7':'#484f58'}">${c.pk?'PK':c.fk||'—'}</td>
+    <td style="font-size:11px;color:#8b949e;max-width:250px">${(c.description||c.record_level_info||'').substring(0,100)}</td>
+    <td><button class="edit-btn" onclick="event.stopPropagation();editCol('${name}','${cname}')">✏️</button></td>
+  </tr>`).join('');
+
+  document.getElementById('detail-cols').innerHTML=`
+    <div class="section-bar"><span class="section-title">Columns</span></div>
+    <table class="col-tbl"><thead><tr><th>#</th><th>Column</th><th>Type</th><th>Role</th><th>Null</th><th>Key</th><th>Description</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+    <button class="add-btn" onclick="addCol('${name}')">+ Add Column</button>`;
+
+  document.getElementById('detail-edit').innerHTML='';
+  document.getElementById('detail').scrollIntoView({behavior:'smooth'});
+}
+
+function editCol(table,col){
+  const c=currentTable.columns[col];
+  if(!c)return;
+  const fields=[
+    {n:'business_name',t:'text'},{n:'description',t:'text'},{n:'semantic_role',t:'select',opts:['identifier','dimension','measure','flag','date','lookup','metric','code','status']},
+    {n:'data_type',t:'text'},{n:'default_aggregation',t:'select',opts:['','SUM','COUNT','AVG','MAX','MIN']},{n:'aggregation_behavior',t:'select',opts:['','additive','semi_additive','non_additive']},
+  ];
+  const bools=['nullable','aggregatable','filterable','sortable','groupable','categorical','pk'];
+  let html=`<div class="edit-form"><h4 style="font-size:14px;margin-bottom:12px">✏️ Edit: ${col}</h4><div class="row">`;
+  fields.forEach(f=>{
+    const v=c[f.n]||'';
+    if(f.t==='select'){
+      html+=`<div><label>${f.n}</label><select name="${f.n}">${f.opts.map(o=>`<option${o===v?' selected':''}>${o}</option>`).join('')}</select></div>`;
+    }else{
+      html+=`<div><label>${f.n}</label><input name="${f.n}" value="${String(v).replace(/"/g,'&quot;')}"></div>`;
+    }
+  });
+  html+='</div><div style="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0">';
+  bools.forEach(b=>{html+=`<div class="cb"><input type="checkbox" name="${b}" ${c[b]?'checked':''}><label>${b}</label></div>`});
+  html+=`</div><div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn-save" onclick="saveCol('${table}','${col}')">💾 Save</button>
+    <button class="btn-cancel" onclick="showDetail('${table}')">Cancel</button>
+  </div></div>`;
+  document.getElementById('detail-edit').innerHTML=html;
+  document.getElementById('detail-edit').scrollIntoView({behavior:'smooth'});
+}
+
+function addCol(table){
+  const fields=[
+    {n:'name',t:'text',req:true},{n:'business_name',t:'text'},{n:'description',t:'text'},{n:'data_type',t:'text',ph:'e.g. INT, VARCHAR(200)'},
+    {n:'semantic_role',t:'select',opts:['identifier','dimension','measure','flag','date','lookup','metric','code','status']},
+    {n:'default_aggregation',t:'select',opts:['','SUM','COUNT','AVG','MAX','MIN']},{n:'aggregation_behavior',t:'select',opts:['','additive','semi_additive','non_additive']},
+  ];
+  const bools=['nullable','aggregatable','filterable','sortable','groupable','categorical'];
+  let html=`<div class="edit-form"><h4 style="font-size:14px;margin-bottom:12px">+ Add Column to ${table}</h4><div class="row">`;
+  fields.forEach(f=>{
+    if(f.t==='select'){
+      html+=`<div><label>${f.n}</label><select name="${f.n}">${f.opts.map(o=>`<option>${o}</option>`).join('')}</select></div>`;
+    }else{
+      html+=`<div><label>${f.n}${f.req?' <span style="color:#f85149">*</span>':''}</label><input name="${f.n}" placeholder="${f.ph||''}"></div>`;
+    }
+  });
+  html+='</div><div style="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0">';
+  bools.forEach(b=>{html+=`<div class="cb"><input type="checkbox" name="${b}" ${b==='nullable'?'checked':''}><label>${b}</label></div>`});
+  html+=`</div><div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn-save" onclick="saveNewCol('${table}')">💾 Add</button>
+    <button class="btn-cancel" onclick="showDetail('${table}')">Cancel</button>
+  </div></div>`;
+  document.getElementById('detail-edit').innerHTML=html;
+  document.getElementById('detail-edit').scrollIntoView({behavior:'smooth'});
+}
+
+async function saveCol(table,col){
+  const form=document.querySelector('.edit-form');
+  const updates={};
+  form.querySelectorAll('input[type=text],input:not([type]),select').forEach(el=>{if(el.name&&el.value)updates[el.name]=el.value});
+  form.querySelectorAll('input[type=checkbox]').forEach(el=>{updates[el.name]=el.checked});
+  const d=await fetch(API+'/api/schema/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table_name:table,column_name:col,updates})}).then(r=>r.json());
+  if(d.status==='saved'){showDetail(table)}
+}
+
+async function saveNewCol(table){
+  const form=document.querySelector('.edit-form');
+  const name=form.querySelector('[name=name]').value.trim();
+  if(!name){alert('Column name is required');return}
+  const updates={};
+  form.querySelectorAll('input[type=text],input:not([type]),select').forEach(el=>{if(el.name&&el.name!=='name'&&el.value)updates[el.name]=el.value});
+  form.querySelectorAll('input[type=checkbox]').forEach(el=>{updates[el.name]=el.checked});
+  const td=await fetch(API+'/api/schema/'+currentTable.table_name).then(r=>r.json());
+  if(!td.columns)td.columns={};
+  td.columns[name]=updates;
+  const d=await fetch(API+'/api/schema/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table_name:currentTable.table_name,yaml_data:td})}).then(r=>r.json());
+  if(d.status==='saved'){showDetail(currentTable.table_name)}
+}
+
+init();
+</script>
+</body>
+</html>

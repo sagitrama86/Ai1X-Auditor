@@ -1,0 +1,45 @@
+version: 1.0
+table_name: dimproductcategory
+schema: dbo
+database: HEDIS_RDW
+classification: dimension
+description: ''
+domain: Quality Reporting
+subject_area: HEDIS
+row_count_approx: 3
+grain:
+  description: ''
+  columns: &id001
+  - ProductCategoryID
+  composite_primary_key: *id001
+joins_with:
+- table: factqualityreport
+  join_type: INNER
+  'on': []
+  on_expression: ''
+  relationship: many:1
+  purpose: Line of Business name
+  note: ''
+columns:
+  ProductCategoryID:
+    business_name: Product Category ID
+    semantic_role: lookup
+    aggregatable: false
+    fk_target: dimproductcategory.ProductCategoryID
+    data_type: INT
+    nullable: false
+    pk: true
+  productcategoryname:
+    business_name: Line of Business
+    semantic_role: dimension
+    filterable: true
+    sortable: true
+    groupable: true
+    categorical: true
+    synonyms:
+    - LOB
+    - line of business
+    - product category
+    data_type: VARCHAR(100)
+    nullable: false
+    pk: false
