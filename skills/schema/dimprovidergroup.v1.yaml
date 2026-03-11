@@ -1,16 +1,17 @@
 version: 1
-table_name: dimorganization
+table_name: dimprovidergroup
 schema: dbo
 database: HEDIS_RDW
 classification: dimension
 description: ''
 domain: Quality Reporting
 subject_area: HEDIS
-row_count_approx: 5
+row_count_approx: 10
 grain:
   description: ''
   columns: &id001
-  - organizationid
+  - providerGroupID
+  - domainid
   composite_primary_key: *id001
 joins_with:
 - table: factqualityreport
@@ -18,29 +19,37 @@ joins_with:
   'on': []
   on_expression: ''
   relationship: many:1
-  purpose: Organization/client name
+  purpose: Provider group name
   note: ''
 columns:
-  organizationid:
-    business_name: Organization ID
+  providerGroupID:
+    business_name: Provider Group ID
     semantic_role: lookup
     aggregatable: false
-    fk_target: dimorganization.organizationid
+    fk_target: dimprovidergroup.providerGroupID
+    business_rules:
+    - Join also requires domainid for uniqueness
     data_type: INT
     nullable: false
     pk: true
-  organizationname:
-    business_name: Organization Name
+  domainid:
+    business_name: Domain ID
+    semantic_role: identifier
+    aggregatable: false
+    data_type: INT
+    nullable: false
+    pk: true
+  providerGroupName:
+    business_name: Provider Group Name
     semantic_role: dimension
     filterable: true
     sortable: true
     groupable: true
     categorical: true
     synonyms:
-    - org name
-    - client
-    - health plan
+    - provider group
+    - group name
     data_type: VARCHAR(200)
     nullable: false
     pk: false
-last_updated: '2026-03-11T13:57:55.979795'
+last_updated: '2026-03-11T13:57:55.456507'

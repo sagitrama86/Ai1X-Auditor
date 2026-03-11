@@ -66,4 +66,4 @@ columns:
     data_type: VARCHAR(50)
     nullable: false
     pk: true
-last_updated: '2026-03-11T13:57:56.612691'
+last_updated: '2026-03-11T13:57:55.794815'

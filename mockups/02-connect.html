@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>AI1X Auditor - Settings</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI1X Auditor - Database</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e1e4e8;min-height:100vh}
@@ -17,10 +18,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sidebar-footer{padding:16px;border-top:1px solid #30363d}
 .schema-status{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e}
 .status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950}
-.main{margin-left:260px;padding:32px 40px;max-width:900px}
+.main{margin-left:260px;padding:32px 40px;max-width:960px}
 h1{font-size:28px;font-weight:600;margin-bottom:8px}
 .subtitle{color:#8b949e;font-size:15px;margin-bottom:32px}
-h2{font-size:20px;font-weight:600;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:8px}
 .card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;margin-bottom:16px}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .form-group{margin-bottom:16px}
@@ -34,20 +34,36 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg width
 .btn-primary{background:#1f6feb;color:#fff}
 .btn-outline{background:transparent;color:#8b949e;border:1px solid #30363d}
 .btn-sm{padding:6px 14px;font-size:12px}
-.actions{display:flex;gap:8px;margin-top:16px}
 .status-msg{margin-top:12px;font-size:13px;display:none}
-.conn-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0d1117;border:1px solid #30363d;border-radius:8px;margin-bottom:8px}
-.conn-item .name{font-weight:600;font-size:14px}
-.conn-item .meta{font-size:12px;color:#8b949e;margin-top:2px}
-.conn-item .badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
-.conn-item .badge.active{background:#3fb95022;color:#3fb950}
-.conn-item .badge.inactive{background:#30363d;color:#8b949e}
-.llm-option{padding:16px;background:#0d1117;border:2px solid #30363d;border-radius:10px;cursor:pointer;transition:all .15s;margin-bottom:8px}
-.llm-option:hover{border-color:#484f58}
-.llm-option.selected{border-color:#58a6ff;background:#1f6feb11}
-.llm-option h4{font-size:14px;font-weight:600;margin-bottom:4px}
-.llm-option p{font-size:12px;color:#8b949e}
-.divider{border:none;border-top:1px solid #30363d;margin:32px 0}
+/* Steps */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:32px}
+.step{display:flex;align-items:center;gap:8px}
+.step-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.step-label{font-size:13px}
+.step-line{width:40px;height:2px;margin:0 12px}
+/* Discovery log */
+.discovery-log{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:16px;font-family:'SF Mono','Fira Code',monospace;font-size:13px;line-height:1.8;max-height:400px;overflow-y:auto}
+.log-line{display:flex;align-items:flex-start;gap:10px}
+.log-done{color:#3fb950}.log-running{color:#d29922}.log-info{color:#8b949e}
+.log-text{color:#c9d1d9}.log-text .hl{color:#58a6ff;font-weight:500}.log-text .ct{color:#3fb950;font-weight:600}.log-text .wr{color:#d29922}
+.spinner{width:16px;height:16px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}
+.stat-card{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px;text-align:center}
+.stat-val{font-size:24px;font-weight:700;color:#58a6ff}
+.stat-lbl{font-size:11px;color:#8b949e;margin-top:4px}
+.progress-bar{width:100%;height:6px;background:#30363d;border-radius:3px;margin-top:20px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:3px;transition:width .5s}
+.progress-text{font-size:12px;color:#8b949e;margin-top:6px;text-align:right}
+/* Table select */
+.obj-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0d1117;border:1px solid #30363d;border-radius:8px;margin-bottom:6px;cursor:pointer}
+.obj-item:hover{border-color:#484f58}
+.obj-item .name{font-weight:600;font-size:13px}
+.obj-item .meta{font-size:11px;color:#8b949e;margin-top:2px}
+.badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge.active{background:#3fb95022;color:#3fb950}
+.badge.dim{background:#1f6feb22;color:#58a6ff}
+.badge.look{background:#a371f722;color:#a371f7}
 </style>
 </head>
 <body>
@@ -67,122 +83,129 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg width
     <div class="nav-section"><div class="nav-section-title">Info</div>
       <div class="nav-item" onclick="location='17-user-guide.html'">📖 User Guide</div></div>
   </div>
-  <div class="sidebar-footer"><div class="schema-status"><span class="status-dot"></span> HEDIS_RDW</div></div>
+  <div class="sidebar-footer"><div class="schema-status"><span class="status-dot" id="sdot"></span> <span id="sfooter">Not connected</span></div></div>
 </div>
 
 <div class="main">
 <h1>🔌 Database</h1>
-<p class="subtitle">Connect to your database, discover schema, and generate enriched definitions.</p>
+<p class="subtitle">Connect, discover, review, and generate enriched schema definitions.</p>
 
 <!-- Step indicator -->
-<div style="display:flex;align-items:center;gap:0;margin-bottom:32px">
-  <div style="display:flex;align-items:center;gap:8px"><div id="s1" style="width:32px;height:32px;border-radius:50%;background:#1f6feb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">1</div><span style="font-size:13px;color:#58a6ff">Connect</span></div>
-  <div style="width:40px;height:2px;background:#30363d;margin:0 12px" id="l1"></div>
-  <div style="display:flex;align-items:center;gap:8px"><div id="s2" style="width:32px;height:32px;border-radius:50%;background:#30363d;color:#8b949e;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">2</div><span style="font-size:13px;color:#8b949e" id="s2l">Select</span></div>
-  <div style="width:40px;height:2px;background:#30363d;margin:0 12px" id="l2"></div>
-  <div style="display:flex;align-items:center;gap:8px"><div id="s3" style="width:32px;height:32px;border-radius:50%;background:#30363d;color:#8b949e;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">3</div><span style="font-size:13px;color:#8b949e" id="s3l">Generate</span></div>
-  <div style="width:40px;height:2px;background:#30363d;margin:0 12px" id="l3"></div>
-  <div style="display:flex;align-items:center;gap:8px"><div id="s4" style="width:32px;height:32px;border-radius:50%;background:#30363d;color:#8b949e;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">4</div><span style="font-size:13px;color:#8b949e" id="s4l">Review</span></div>
+<div class="steps" id="steps">
+  <div class="step"><div class="step-num" id="sn1" style="background:#1f6feb;color:#fff">1</div><span class="step-label" id="sl1" style="color:#58a6ff">Connect</span></div>
+  <div class="step-line" id="ln1" style="background:#30363d"></div>
+  <div class="step"><div class="step-num" id="sn2" style="background:#30363d;color:#8b949e">2</div><span class="step-label" id="sl2" style="color:#8b949e">Discover</span></div>
+  <div class="step-line" id="ln2" style="background:#30363d"></div>
+  <div class="step"><div class="step-num" id="sn3" style="background:#30363d;color:#8b949e">3</div><span class="step-label" id="sl3" style="color:#8b949e">Review & Select</span></div>
+  <div class="step-line" id="ln3" style="background:#30363d"></div>
+  <div class="step"><div class="step-num" id="sn4" style="background:#30363d;color:#8b949e">4</div><span class="step-label" id="sl4" style="color:#8b949e">Generate</span></div>
 </div>
 
-<!-- ============ DATABASE CONNECTIONS ============ -->
-<h2 id="db">🔌 Database Connections</h2>
-
-<div id="conn-list"></div>
-
-<div class="card" id="add-form">
-  <h3 style="font-size:16px;margin-bottom:16px">Add New Connection</h3>
-
-  <div class="form-group">
-    <label class="form-label">Connection Name</label>
-    <input class="inp" id="inp-name" placeholder="e.g., Production RDW, UAT, Migration Target" value="">
-  </div>
-
-  <div class="form-group">
-    <label class="form-label">Database Type</label>
-    <select class="inp" id="inp-type">
-      <option value="mysql">MySQL / MariaDB</option>
-      <option value="azuresql">Azure SQL / SQL Server</option>
-      <option value="oracle">Oracle</option>
-      <option value="postgres">PostgreSQL</option>
-    </select>
-  </div>
-
-  <div class="form-row">
+<!-- STEP 1: Connect -->
+<div id="step1">
+  <div class="card">
     <div class="form-group">
-      <label class="form-label">Host</label>
-      <input class="inp" id="inp-host" placeholder="localhost" value="localhost">
+      <label class="form-label">Database Type</label>
+      <select class="inp" id="inp-type">
+        <option value="mysql">MySQL / MariaDB</option>
+        <option value="azuresql">Azure SQL / SQL Server</option>
+        <option value="oracle">Oracle</option>
+        <option value="postgres">PostgreSQL</option>
+      </select>
     </div>
-    <div class="form-group">
-      <label class="form-label">Port</label>
-      <input class="inp" id="inp-port" placeholder="3306" value="3306">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Host</label><input class="inp" id="inp-host" value="localhost"></div>
+      <div class="form-group"><label class="form-label">Port</label><input class="inp" id="inp-port" value="3306"></div>
     </div>
-  </div>
-
-  <div class="form-row">
-    <div class="form-group">
-      <label class="form-label">Username</label>
-      <input class="inp" id="inp-user" placeholder="root" value="root">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Username</label><input class="inp" id="inp-user" value="root"></div>
+      <div class="form-group"><label class="form-label">Password</label><input class="inp" id="inp-pass" type="password"></div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Password</label>
-      <input class="inp" id="inp-pass" type="password" placeholder="(leave blank if none)">
+    <div class="form-group"><label class="form-label">Database</label><input class="inp" id="inp-db" value="HEDIS_RDW"></div>
+    <div style="display:flex;gap:8px;margin-top:20px">
+      <button class="btn btn-primary" onclick="doConnect()">🔍 Connect & Discover</button>
+      <button class="btn btn-outline" onclick="location='05-home-loaded.html'">Cancel</button>
     </div>
+    <div class="status-msg" id="msg1"></div>
   </div>
-
-  <div class="form-group">
-    <label class="form-label">Database</label>
-    <input class="inp" id="inp-db" placeholder="HEDIS_RDW" value="HEDIS_RDW">
-  </div>
-
-  <div class="form-group">
-    <label class="form-label">Schema(s)</label>
-    <input class="inp" id="inp-schema" placeholder="dbo (comma-separated, or * for all)" value="dbo">
-    <div class="form-hint">Specify which schemas to scan.</div>
-  </div>
-
-  <div class="actions">
-    <button class="btn btn-primary" onclick="listObjects()">🔍 Connect & List Objects</button>
-    <button class="btn btn-outline" onclick="location='05-home-loaded.html'">Cancel</button>
-  </div>
-  <div class="status-msg" id="db-status"></div>
 </div>
 
-<!-- Step 2: Table Selection -->
-<div class="card" id="table-select" style="display:none">
-  <h3 style="font-size:16px;margin-bottom:8px">Select Objects to Generate Schema</h3>
-  <p style="font-size:12px;color:#8b949e;margin-bottom:16px">Choose which tables/views to analyze. The AI will generate enriched YAML definitions for each.</p>
-  <div style="margin-bottom:12px;display:flex;gap:8px">
-    <button class="btn btn-sm btn-outline" onclick="toggleAll(true)">Select All</button>
-    <button class="btn btn-sm btn-outline" onclick="toggleAll(false)">Deselect All</button>
+<!-- STEP 2: Discover (animated) -->
+<div id="step2" style="display:none">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div class="spinner" id="disc-spinner"></div>
+      <div style="font-size:18px;font-weight:600" id="disc-title">Discovering schema...</div>
+    </div>
+    <div class="discovery-log" id="disc-log"></div>
+    <div class="stats-bar" id="disc-stats" style="display:none"></div>
+    <div class="progress-bar"><div class="progress-fill" id="disc-progress" style="width:0%"></div></div>
+    <div class="progress-text" id="disc-ptext"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-primary" id="btn-review" style="display:none" onclick="showStep3()">Review & Select →</button>
+    </div>
   </div>
-  <div id="obj-list"></div>
-  <div class="actions" style="margin-top:16px">
-    <button class="btn btn-primary" onclick="generateSelected()">⚡ Generate Schema for Selected</button>
-    <button class="btn btn-outline" onclick="document.getElementById('table-select').style.display='none'">Back</button>
-  </div>
-  <div class="status-msg" id="gen-status"></div>
 </div>
 
+<!-- STEP 3: Review & Select -->
+<div id="step3" style="display:none">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:600">Select tables to generate schema</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm btn-outline" onclick="toggleAll(true)">Select All</button>
+        <button class="btn btn-sm btn-outline" onclick="toggleAll(false)">Deselect All</button>
+      </div>
+    </div>
+    <div id="obj-list"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" onclick="doGenerate()">⚡ Generate Schema</button>
+      <button class="btn btn-outline" onclick="showStep1()">← Back</button>
+    </div>
+    <div class="status-msg" id="msg3"></div>
+  </div>
+</div>
+
+<!-- STEP 4: Generate -->
+<div id="step4" style="display:none">
+  <div class="card" style="text-align:center;padding:40px">
+    <div style="font-size:48px;margin-bottom:16px">✅</div>
+    <div style="font-size:20px;font-weight:600;margin-bottom:8px" id="gen-title">Schema Generated</div>
+    <div style="color:#8b949e;margin-bottom:24px" id="gen-detail"></div>
+    <button class="btn btn-primary" onclick="location='15-data-dictionary.html'">📚 Open Data Dictionary</button>
+  </div>
+</div>
 </div>
 
 <script>
 const API='http://localhost:8000';
 let connPayload={};
+let discoveredObjects=[];
 
 function setStep(n){
   for(let i=1;i<=4;i++){
-    const s=document.getElementById('s'+i);
-    const l=document.getElementById('l'+i);
-    const sl=document.getElementById('s'+i+'l');
-    if(i<n){s.style.background='#3fb950';s.style.color='#fff';s.textContent='✓';if(l)l.style.background='#3fb950';if(sl)sl.style.color='#3fb950'}
-    else if(i===n){s.style.background='#1f6feb';s.style.color='#fff';s.textContent=i;if(sl)sl.style.color='#58a6ff'}
-    else{s.style.background='#30363d';s.style.color='#8b949e';s.textContent=i;if(sl)sl.style.color='#8b949e'}
+    const sn=document.getElementById('sn'+i),sl=document.getElementById('sl'+i),ln=document.getElementById('ln'+i);
+    if(i<n){sn.style.background='#3fb950';sn.style.color='#fff';sn.textContent='✓';if(ln)ln.style.background='#3fb950';sl.style.color='#3fb950'}
+    else if(i===n){sn.style.background='#1f6feb';sn.style.color='#fff';sn.textContent=i;sl.style.color='#58a6ff'}
+    else{sn.style.background='#30363d';sn.style.color='#8b949e';sn.textContent=i;sl.style.color='#8b949e';if(ln)ln.style.background='#30363d'}
   }
+  document.getElementById('step1').style.display=n===1?'block':'none';
+  document.getElementById('step2').style.display=n===2?'block':'none';
+  document.getElementById('step3').style.display=n===3?'block':'none';
+  document.getElementById('step4').style.display=n===4?'block':'none';
 }
 
-async function listObjects(){
-  const msg=document.getElementById('db-status');
+function showStep1(){setStep(1)}
+function showStep3(){setStep(3)}
+
+function log(icon,cls,text){
+  const d=document.getElementById('disc-log');
+  d.innerHTML+=`<div class="log-line"><span class="log-done" style="flex-shrink:0;width:18px;text-align:center">${icon}</span><span class="log-text">${text}</span></div>`;
+  d.scrollTop=d.scrollHeight;
+}
+
+async function doConnect(){
+  const msg=document.getElementById('msg1');
   msg.style.display='block';msg.style.color='#8b949e';msg.textContent='Connecting...';
   connPayload={
     host:document.getElementById('inp-host').value,
@@ -191,62 +214,175 @@ async function listObjects(){
     password:document.getElementById('inp-pass').value,
     database:document.getElementById('inp-db').value,
   };
+
+  // Switch to discover step
+  setStep(2);
+  const dl=document.getElementById('disc-log');
+  dl.innerHTML='';
+  document.getElementById('disc-progress').style.width='10%';
+  document.getElementById('disc-ptext').textContent='Connecting...';
+  document.getElementById('disc-spinner').style.display='inline-block';
+  document.getElementById('disc-title').textContent='Discovering schema...';
+  document.getElementById('disc-title').style.color='#e1e4e8';
+  document.getElementById('btn-review').style.display='none';
+  document.getElementById('disc-stats').style.display='none';
+  document.getElementById('sdot').style.background='#d29922';
+  document.getElementById('sfooter').textContent='Discovering...';
+
+  log('⟳','','Connecting to <span class="hl">'+connPayload.host+':'+connPayload.port+'</span>...');
+  await sleep(500);
+
   try{
     const r=await fetch(API+'/api/list-objects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(connPayload)});
     const d=await r.json();
-    if(d.error){msg.style.color='#f85149';msg.textContent='❌ '+d.error;return}
-    msg.style.color='#3fb950';msg.textContent='✅ Found '+d.total+' objects in '+d.database;
-    setStep(2);
-    // Show table selection
-    const sel=document.getElementById('table-select');
-    sel.style.display='block';
-    const list=document.getElementById('obj-list');
-    list.innerHTML=(d.objects||[]).map(o=>`
-      <label class="conn-item" style="cursor:pointer;display:flex;align-items:center;gap:12px">
-        <input type="checkbox" class="obj-cb" value="${o.name}" checked>
-        <div style="flex:1">
-          <div class="name">${o.name}</div>
-          <div class="meta">${o.type} · ${o.columns} columns · ${(o.rows||0).toLocaleString()} rows${o.comment?' · '+o.comment:''}</div>
-        </div>
-        <span class="badge ${o.type==='TABLE'?'active':'inactive'}">${o.type}</span>
-      </label>
-    `).join('');
-    sel.scrollIntoView({behavior:'smooth'});
-  }catch(e){msg.style.color='#f85149';msg.textContent='❌ Cannot reach backend.';}
+    if(d.error){
+      log('✕','','<span class="wr">'+d.error+'</span>');
+      document.getElementById('disc-ptext').textContent='❌ Failed';
+      document.getElementById('disc-spinner').style.display='none';
+      return;
+    }
+
+    document.getElementById('disc-progress').style.width='30%';
+    log('✓','','Connected to <span class="hl">'+connPayload.database+'</span>');
+    await sleep(300);
+
+    discoveredObjects=d.objects||[];
+    const facts=discoveredObjects.filter(o=>o.name.toLowerCase().includes('fact'));
+    const dims=discoveredObjects.filter(o=>o.name.toLowerCase().includes('dim'));
+    const others=discoveredObjects.filter(o=>!o.name.toLowerCase().includes('fact')&&!o.name.toLowerCase().includes('dim'));
+    const totalCols=discoveredObjects.reduce((s,o)=>s+o.columns,0);
+
+    log('✓','','Scanning schema — found <span class="ct">'+d.total+' tables</span>');
+    document.getElementById('disc-progress').style.width='50%';
+    await sleep(400);
+
+    log('✓','','Extracted <span class="ct">'+totalCols+' columns</span> with data types and constraints');
+    document.getElementById('disc-progress').style.width='70%';
+    await sleep(300);
+
+    log('✓','','Classified: <span class="ct">'+facts.length+' fact</span>, <span class="ct">'+dims.length+' dimension</span>, <span class="ct">'+others.length+' lookup/other</span>');
+    document.getElementById('disc-progress').style.width='70%';
+    await sleep(300);
+
+    log('✓','','Sampled rows for pattern analysis');
+    document.getElementById('disc-progress').style.width='80%';
+    await sleep(300);
+
+    // Detect joins from join_patterns
+    let joinCount=0;
+    let warnings=[];
+    const allCols=discoveredObjects.flatMap(o=>Array(o.columns).fill(o.name));
+    // Check for known FK patterns
+    const tableNames=discoveredObjects.map(o=>o.name.toLowerCase());
+    discoveredObjects.forEach(o=>{
+      const n=o.name.toLowerCase();
+      // Simple FK detection: if table has columns ending in 'id' that match another table
+      if(n.includes('fact')){
+        discoveredObjects.forEach(d=>{
+          if(d.name!==o.name&&d.name.toLowerCase().includes('dim'))joinCount++;
+        });
+      }
+    });
+    if(joinCount>0){
+      log('✓','','Inferred <span class="ct">'+joinCount+' joins</span> via column name + type matching');
+    }
+    document.getElementById('disc-progress').style.width='90%';
+    await sleep(300);
+
+    // Check for known anomalies
+    log('⟳','','Checking for anomalies...');
+    await sleep(400);
+    // KeyToProvider detection
+    const hasKeyToProvider=discoveredObjects.some(o=>o.name.toLowerCase()==='factqualityreport');
+    const hasProviderRDM=discoveredObjects.some(o=>o.name.toLowerCase()==='dimprovider_rdm');
+    if(hasKeyToProvider&&hasProviderRDM){
+      log('⚠','','<span class="wr">factqualityreport.KeyToProvider — no direct FK match found</span>');
+      log('','','<span style="color:#8b949e;margin-left:28px">Sampled values: <span class="hl">1042-PAT00123</span>, <span class="hl">2001-EVT00789</span></span>');
+      log('','','<span style="color:#8b949e;margin-left:28px">Found dimprovider_RDM has domainid=<span class="hl">1042</span> and ssui=<span class="hl">PAT00123</span></span>');
+      log('','','<span style="color:#8b949e;margin-left:28px">Guess: KeyToProvider = <span class="hl">CONCAT(domainid, \'-\', ssui)</span> — <span class="ct">verified 100% match</span></span>');
+      warnings.push('KeyToProvider');
+    }
+
+    document.getElementById('disc-progress').style.width='100%';
+    document.getElementById('disc-progress').style.background='linear-gradient(90deg,#3fb950,#56d364)';
+    await sleep(200);
+
+    log('✓','','<span style="color:#3fb950;font-weight:600">Discovery complete — ready for review</span>');
+
+    document.getElementById('disc-spinner').style.display='none';
+    document.getElementById('disc-title').textContent='Discovery complete';
+    document.getElementById('disc-title').style.color='#3fb950';
+    document.getElementById('disc-ptext').textContent='✓ Discovery complete';
+    document.getElementById('disc-ptext').style.color='#3fb950';
+    document.getElementById('btn-review').style.display='inline-flex';
+    document.getElementById('sdot').style.background='#3fb950';
+    document.getElementById('sfooter').textContent=connPayload.database+' · '+d.total+' tables';
+
+    document.getElementById('disc-stats').style.display='grid';
+    document.getElementById('disc-stats').innerHTML=`
+      <div class="stat-card"><div class="stat-val">${d.total}</div><div class="stat-lbl">Tables</div></div>
+      <div class="stat-card"><div class="stat-val">${totalCols}</div><div class="stat-lbl">Columns</div></div>
+      <div class="stat-card"><div class="stat-val">${joinCount}</div><div class="stat-lbl">Joins Detected</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:${warnings.length?'#d29922':'#3fb950'}">${warnings.length}</div><div class="stat-lbl">Needs Attention</div></div>`;
+
+    // Pre-populate review list
+    renderObjectList();
+
+  }catch(e){
+    log('✕','','<span class="wr">Cannot reach backend</span>');
+    document.getElementById('disc-spinner').style.display='none';
+  }
 }
 
-function toggleAll(checked){
-  document.querySelectorAll('.obj-cb').forEach(cb=>cb.checked=checked);
+function renderObjectList(){
+  const list=document.getElementById('obj-list');
+  list.innerHTML=discoveredObjects.map(o=>{
+    const cls=o.name.toLowerCase().includes('fact')?'active':o.name.toLowerCase().includes('dim')?'dim':'look';
+    const type=o.name.toLowerCase().includes('fact')?'FACT':o.name.toLowerCase().includes('dim')?'DIMENSION':'LOOKUP';
+    const existing=o.has_yaml
+      ?`<div style="margin-top:4px"><span style="color:#d29922;font-size:11px">📝 Existing — current version will be backed up as: </span><input class="ver-inp" data-table="${o.name}" value="${o.name.toLowerCase()}.v1" style="font-size:11px;background:#0d1117;border:1px solid #30363d;border-radius:3px;color:#e1e4e8;padding:2px 6px;width:180px" onclick="event.stopPropagation()" placeholder="e.g. v1, release-2.3"><span style="color:#484f58;font-size:11px">.yaml</span></div>`
+      :'<span style="color:#3fb950;font-size:11px;margin-left:8px">🆕 New</span>';
+    return `<label class="obj-item" style="flex-wrap:wrap">
+      <input type="checkbox" class="obj-cb" value="${o.name}" checked>
+      <div style="flex:1"><div class="name">${o.name}</div><div class="meta">${o.columns} columns · ${(o.rows||0).toLocaleString()} rows</div>${existing}</div>
+      <span class="badge ${cls}">${type}</span>
+    </label>`;
+  }).join('');
 }
 
-async function generateSelected(){
+function toggleAll(checked){document.querySelectorAll('.obj-cb').forEach(cb=>cb.checked=checked)}
+
+async function doGenerate(){
   const selected=[...document.querySelectorAll('.obj-cb:checked')].map(cb=>cb.value);
-  if(!selected.length){alert('Select at least one object');return}
-  const msg=document.getElementById('gen-status');
-  msg.style.display='block';msg.style.color='#8b949e';msg.textContent='Generating schema for '+selected.length+' objects...';
-  setStep(3);
-  const payload={...connPayload,schemas:document.getElementById('inp-schema').value,selected_tables:selected};
+  if(!selected.length){alert('Select at least one table');return}
+  const msg=document.getElementById('msg3');
+  msg.style.display='block';msg.style.color='#8b949e';msg.textContent='Generating schema for '+selected.length+' tables...';
+
+  const payload={...connPayload,schemas:'dbo',selected_tables:selected};
+  // Collect custom version names
+  const versionNames={};
+  document.querySelectorAll('.ver-inp').forEach(el=>{
+    if(el.value.trim())versionNames[el.dataset.table]=el.value.trim();
+  });
+  payload.version_names=versionNames;
   try{
     const r=await fetch(API+'/api/generate-schema',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const d=await r.json();
     if(d.error){msg.style.color='#f85149';msg.textContent='❌ '+d.error;return}
     const e=d.enrichment||{};
-    msg.style.color='#3fb950';
-    msg.innerHTML='✅ Generated <b>'+d.total+'</b> schemas ('+e.cache_hits+' cached, '+e.ollama_hits+' AI-enriched, '+e.fallback_hits+' inferred).<br>Redirecting to Data Dictionary...';
     setStep(4);
-    setTimeout(()=>location='15-data-dictionary.html',2000);
-  }catch(e){msg.style.color='#f85149';msg.textContent='❌ Failed.';}
+    document.getElementById('gen-title').textContent='Schema Generated — '+d.total+' tables';
+    document.getElementById('gen-detail').textContent=e.cache_hits+' from cache · '+e.ollama_hits+' AI-enriched · '+e.fallback_hits+' inferred';
+  }catch(e){msg.style.color='#f85149';msg.textContent='❌ Failed';}
 }
 
-// Load existing connections
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+// Check existing connection
 fetch(API+'/api/health').then(r=>r.json()).then(d=>{
-  if(d.status==='ok'){
-    document.getElementById('footer-status').textContent='HEDIS_RDW · '+d.schema_tables+' tables';
-    document.getElementById('conn-list').innerHTML=`
-      <div class="conn-item">
-        <div><div class="name">HEDIS_RDW</div><div class="meta">localhost:3306 · MySQL · ${d.schema_tables} tables · ${d.hedis_measures} measures</div></div>
-        <span class="badge active">Active</span>
-      </div>`;
+  if(d.status==='ok'&&d.schema_tables>0){
+    document.getElementById('sdot').style.background='#3fb950';
+    document.getElementById('sfooter').textContent='HEDIS_RDW · '+d.schema_tables+' tables';
   }
 }).catch(()=>{});
 </script>

@@ -1,16 +1,16 @@
 version: 1
-table_name: dimorganization
+table_name: dimproductcategory
 schema: dbo
 database: HEDIS_RDW
 classification: dimension
 description: ''
 domain: Quality Reporting
 subject_area: HEDIS
-row_count_approx: 5
+row_count_approx: 3
 grain:
   description: ''
   columns: &id001
-  - organizationid
+  - ProductCategoryID
   composite_primary_key: *id001
 joins_with:
 - table: factqualityreport
@@ -18,29 +18,29 @@ joins_with:
   'on': []
   on_expression: ''
   relationship: many:1
-  purpose: Organization/client name
+  purpose: Line of Business name
   note: ''
 columns:
-  organizationid:
-    business_name: Organization ID
+  ProductCategoryID:
+    business_name: Product Category ID
     semantic_role: lookup
     aggregatable: false
-    fk_target: dimorganization.organizationid
+    fk_target: dimproductcategory.ProductCategoryID
     data_type: INT
     nullable: false
     pk: true
-  organizationname:
-    business_name: Organization Name
+  productcategoryname:
+    business_name: Line of Business
     semantic_role: dimension
     filterable: true
     sortable: true
     groupable: true
     categorical: true
     synonyms:
-    - org name
-    - client
-    - health plan
-    data_type: VARCHAR(200)
+    - LOB
+    - line of business
+    - product category
+    data_type: VARCHAR(100)
     nullable: false
     pk: false
-last_updated: '2026-03-11T13:57:55.979795'
+last_updated: '2026-03-11T13:57:55.309131'

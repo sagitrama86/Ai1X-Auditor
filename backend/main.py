@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
-import os
+import os, requests
 
 from skills_loader import load_all, load_schema, load_joins, load_domain, load_reports
 from sql_generator import generate_sql
@@ -184,6 +184,59 @@ def get_runs():
         with open(f) as fh:
             runs.append(json.load(fh))
     return {"runs": runs}
+
+# ---- Model Configuration ----
+
+class ModelRequest(BaseModel):
+    provider: str = "ollama"
+    model: str = ""
+    api_key: str = ""
+    url: str = ""
+
+# In-memory model config
+_model_config = {
+    "provider": "ollama",
+    "model": "llama3.2-vision",
+    "url": "http://localhost:11434",
+    "api_key": "",
+}
+
+@app.get("/api/model")
+def get_model():
+    config = dict(_model_config)
+    # List available Ollama models
+    available = []
+    if config["provider"] == "ollama":
+        try:
+            r = requests.get(f"{config['url']}/api/tags", timeout=5)
+            if r.status_code == 200:
+                available = [m["name"] for m in r.json().get("models", [])]
+        except Exception:
+            pass
+    config["available"] = available
+    return config
+
+@app.post("/api/model")
+def set_model(req: ModelRequest):
+    _model_config["provider"] = req.provider
+    if req.model:
+        _model_config["model"] = req.model
+    if req.api_key:
+        _model_config["api_key"] = req.api_key
+    if req.provider == "ollama":
+        _model_config["url"] = req.url or "http://localhost:11434"
+    elif req.provider == "openai":
+        _model_config["url"] = "https://api.openai.com/v1"
+    elif req.provider == "anthropic":
+        _model_config["url"] = "https://api.anthropic.com/v1"
+
+    # Update ai_chat module
+    import ai_chat
+    if req.provider == "ollama":
+        ai_chat.OLLAMA_URL = f"{_model_config['url']}/api/generate"
+        ai_chat.MODEL = _model_config["model"]
+
+    return {"status": "ok", "provider": _model_config["provider"], "model": _model_config["model"]}
 
 # ---- Schema Edit ----
 
@@ -449,16 +502,19 @@ def api_list_objects(req: ListTablesRequest):
             ORDER BY TABLE_TYPE, TABLE_NAME
         """, (req.database,))
         objects = []
+        from pathlib import Path
+        schema_dir = Path(__file__).parent.parent / "skills" / "schema"
         for name, ttype, rows, comment in cur.fetchall():
-            # Get column count
             cur.execute("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s", (req.database, name))
             col_count = cur.fetchone()[0]
+            has_yaml = (schema_dir / f"{name.lower()}.yaml").exists()
             objects.append({
                 "name": name,
                 "type": "VIEW" if ttype == "VIEW" else "TABLE",
                 "rows": rows or 0,
                 "columns": col_count,
                 "comment": comment or "",
+                "has_yaml": has_yaml,
             })
         conn.close()
         return {"objects": objects, "total": len(objects), "database": req.database}
@@ -473,6 +529,7 @@ class GenerateRequest(BaseModel):
     database: str = "HEDIS_RDW"
     schemas: str = "dbo"
     selected_tables: list
+    version_names: dict = {}
 
 @app.post("/api/generate-schema")
 def api_generate_schema(req: GenerateRequest):
@@ -520,15 +577,35 @@ def api_generate_schema(req: GenerateRequest):
             stats["ollama_hits"] += es.get("ollama_hits", 0)
             stats["fallback_hits"] += es.get("fallback_hits", 0)
 
-            # Save YAML
-            import yaml
+            # Save YAML with versioning
+            import yaml, glob, shutil, datetime
             from pathlib import Path
             save_data = {k: v for k, v in enriched.items() if k != "enrichment_stats"}
-            filepath = Path(__file__).parent.parent / "skills" / "schema" / f"{tname.lower()}.yaml"
+            schema_dir = Path(__file__).parent.parent / "skills" / "schema"
+            filepath = schema_dir / f"{tname.lower()}.yaml"
+
+            action = "new"
+            if filepath.exists():
+                # Use custom version name if provided, otherwise auto-increment
+                custom_name = req.version_names.get(tname, "")
+                if custom_name and not custom_name.endswith('.yaml'):
+                    custom_name += '.yaml'
+                if custom_name:
+                    backup = schema_dir / custom_name
+                else:
+                    existing_versions = glob.glob(str(schema_dir / f"{tname.lower()}.v*.yaml"))
+                    next_v = len(existing_versions) + 1
+                    backup = schema_dir / f"{tname.lower()}.v{next_v}.yaml"
+                shutil.copy2(filepath, backup)
+                action = "overwrite"
+
+            save_data["version"] = (next_v + 1) if filepath.exists() and 'next_v' in dir() else 1
+            save_data["last_updated"] = datetime.datetime.now().isoformat()
+
             with open(filepath, "w") as f:
                 yaml.dump(save_data, f, default_flow_style=False, sort_keys=False)
 
-            results.append({"table": tname, "columns": len(raw_columns), "stats": es})
+            results.append({"table": tname, "columns": len(raw_columns), "stats": es, "action": action})
 
         conn.close()
         return {"results": results, "total": len(results), "enrichment": stats}
@@ -536,6 +613,56 @@ def api_generate_schema(req: GenerateRequest):
         return {"error": str(e)}
 
 # ---- Full Schema Edit (add/remove sections, fields, values) ----
+
+@app.get("/api/schema/{table_name}/versions")
+def list_versions(table_name: str):
+    import glob, yaml
+    from pathlib import Path
+    schema_dir = Path(__file__).parent.parent / "skills" / "schema"
+    versions = []
+    # Current
+    current = schema_dir / f"{table_name.lower()}.yaml"
+    if current.exists():
+        doc = yaml.safe_load(open(current))
+        versions.append({
+            "file": current.name,
+            "version": doc.get("version", "current"),
+            "last_updated": doc.get("last_updated", ""),
+            "current": True,
+        })
+    # Previous versions
+    for p in sorted(glob.glob(str(schema_dir / f"{table_name.lower()}.v*.yaml"))):
+        pp = Path(p)
+        doc = yaml.safe_load(open(pp))
+        versions.append({
+            "file": pp.name,
+            "version": doc.get("version", pp.stem.split(".v")[-1]),
+            "last_updated": doc.get("last_updated", ""),
+            "current": False,
+        })
+    return {"table": table_name, "versions": versions}
+
+@app.post("/api/schema/{table_name}/restore/{version_file}")
+def restore_version(table_name: str, version_file: str):
+    import shutil, datetime, glob, yaml
+    from pathlib import Path
+    schema_dir = Path(__file__).parent.parent / "skills" / "schema"
+    source = schema_dir / version_file
+    target = schema_dir / f"{table_name.lower()}.yaml"
+    if not source.exists():
+        return {"error": f"Version file '{version_file}' not found"}
+    # Backup current before restoring
+    if target.exists():
+        existing = glob.glob(str(schema_dir / f"{table_name.lower()}.v*.yaml"))
+        next_v = len(existing) + 1
+        shutil.copy2(target, schema_dir / f"{table_name.lower()}.v{next_v}.yaml")
+    shutil.copy2(source, target)
+    # Update timestamp
+    doc = yaml.safe_load(open(target))
+    doc["last_updated"] = datetime.datetime.now().isoformat()
+    with open(target, "w") as f:
+        yaml.dump(doc, f, default_flow_style=False, sort_keys=False)
+    return {"status": "restored", "from": version_file}
 
 class FullEditRequest(BaseModel):
     table_name: str
@@ -739,5 +866,5 @@ def health():
         "reports": len(data["reports"]),
         "hedis_measures": len(data["domain"].get("measures", {})),
         "field_templates": len(data["domain"].get("field_templates", {})),
-        "llm": "llama3.2-vision (Ollama · localhost:11434)",
+        "llm": f"{_model_config['model']} ({_model_config['provider']} · {_model_config['url']})",
     }

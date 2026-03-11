@@ -108,4 +108,4 @@ columns:
     data_type: DECIMAL(5,2)
     nullable: true
     pk: false
-last_updated: '2026-03-11T13:57:56.786296'
+last_updated: '2026-03-11T13:57:56.126621'

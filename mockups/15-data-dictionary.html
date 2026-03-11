@@ -51,6 +51,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .edit-btn:hover{border-color:#58a6ff}
 .add-btn{margin-top:10px;padding:6px 14px;background:transparent;border:1px dashed #30363d;border-radius:8px;color:#8b949e;font-size:12px;cursor:pointer}
 .add-btn:hover{border-color:#58a6ff;color:#58a6ff}
+.inline-inp{background:#0d1117;border:1px solid transparent;border-radius:3px;color:#c9d1d9;padding:3px 6px;font-size:11px;width:100%;font-family:inherit}
+.inline-inp:focus{border-color:#58a6ff;outline:none;background:#0d1117}
+.inline-inp:hover{border-color:#30363d}
+.inline-sel{background:#0d1117;border:1px solid transparent;border-radius:3px;color:#a371f7;padding:3px 4px;font-size:11px;font-family:inherit;cursor:pointer}
+.inline-sel:focus{border-color:#58a6ff;outline:none}
+.inline-sel:hover{border-color:#30363d}
 .edit-form{padding:16px 20px;border-top:1px solid #30363d}
 .edit-form label{font-size:12px;color:#8b949e;display:block;margin-bottom:2px}
 .edit-form input,.edit-form select{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#e1e4e8;padding:4px 8px;font-size:12px;margin-bottom:8px}
@@ -94,6 +100,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="detail-header"><h3 id="detail-title"></h3><button onclick="document.getElementById('detail').classList.remove('show')" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:16px">✕</button></div>
     <div id="detail-desc"></div>
     <div id="detail-meta"></div>
+    <div id="detail-joins"></div>
     <div id="detail-problems"></div>
     <div id="detail-cols"></div>
     <div id="detail-edit"></div>
@@ -140,7 +147,10 @@ async function showDetail(name){
   currentTable=t;
   document.getElementById('detail').classList.add('show');
   document.getElementById('detail-title').textContent=name+' — '+Object.keys(t.columns||{}).length+' columns';
-  document.getElementById('detail-desc').innerHTML=`<div class="desc-box">${t.description||'<em>No description</em>'}</div>`;
+  document.getElementById('detail-desc').innerHTML=`<div class="desc-box">${t.description||'<em>No description</em>'}
+    <span style="float:right;font-size:11px;color:#484f58">v${t.version||'?'} · ${t.last_updated?t.last_updated.substring(0,10):'—'}</span>
+    <button onclick="showVersions('${name}')" style="float:right;margin-right:12px;background:none;border:1px solid #30363d;border-radius:4px;color:#58a6ff;cursor:pointer;font-size:11px;padding:2px 8px">🕐 Versions</button>
+  </div>`;
 
   // Metadata
   const grain=t.grain||{};
@@ -157,57 +167,106 @@ async function showDetail(name){
   }
   document.getElementById('detail-meta').innerHTML=meta;
 
+  // Joins
+  const joins=t.joins_with||[];
+  if(joins.length){
+    document.getElementById('detail-joins').innerHTML=`
+      <div class="section-bar"><span class="section-title">Joins (${joins.length})</span></div>
+      <div style="padding:8px 20px">${joins.map(j=>`
+        <div style="padding:6px 0;border-bottom:1px solid #21262d;font-size:12px">
+          <span style="color:#3fb950;font-weight:600">${j.join_type||'INNER'}</span> → <span style="font-weight:500">${j.table||''}</span>
+          <span style="color:#8b949e;margin-left:8px">${j.relationship||''}</span>
+          ${j.on?'<span style="color:#484f58;margin-left:8px">on '+j.on.join(' + ')+'</span>':''}
+          ${j.on_expression?'<div style="color:#a371f7;font-size:11px;margin-top:2px;font-family:monospace">'+j.on_expression.substring(0,120)+'</div>':''}
+          <div style="color:#8b949e;font-size:11px">${j.purpose||''}</div>
+          ${j.note?'<div style="color:#d29922;font-size:11px">⚠ '+j.note+'</div>':''}
+        </div>`).join('')}
+      </div>`;
+  }else{
+    document.getElementById('detail-joins').innerHTML='';
+  }
+
   // Problems
   const probs=(t.problems_and_suggestions||[]);
   document.getElementById('detail-problems').innerHTML=probs.map(p=>`<div class="problem"><div class="problem-title">⚠ ${p.problem}</div><div class="problem-text">💡 ${p.suggestion}</div></div>`).join('');
 
   // Columns
   const cols=t.columns||{};
-  let rows=Object.entries(cols).map(([cname,c],i)=>`<tr>
+  const roles=['identifier','dimension','measure','flag','date','lookup','metric','code','status'];
+  const aggs=['','SUM','COUNT','AVG','MAX','MIN'];
+  const aggBehaviors=['','additive','semi_additive','non_additive'];
+
+  let rows=Object.entries(cols).map(([cname,c],i)=>`<tr data-col="${cname}" data-table="${name}">
     <td style="color:#484f58">${i+1}</td>
-    <td style="font-weight:500;${c.pk?'color:#d29922':''}">${cname}${c.business_name?'<br><span style="color:#484f58;font-weight:400;font-size:11px">'+c.business_name+'</span>':''}</td>
-    <td><code style="font-size:11px;background:#0d1117;padding:2px 6px;border-radius:4px">${c.data_type||'—'}</code></td>
-    <td style="color:#a371f7;font-size:11px">${c.semantic_role||'—'}</td>
-    <td>${c.nullable===false?'<span style="color:#f85149">✕</span>':'<span style="color:#3fb950">✓</span>'}</td>
-    <td style="font-size:11px;color:${c.pk?'#d29922':c.fk?'#a371f7':'#484f58'}">${c.pk?'PK':c.fk||'—'}</td>
-    <td style="font-size:11px;color:#8b949e;max-width:250px">${(c.description||c.record_level_info||'').substring(0,100)}</td>
-    <td><button class="edit-btn" onclick="event.stopPropagation();editCol('${name}','${cname}')">✏️</button></td>
+    <td style="font-weight:500;${c.pk?'color:#d29922':''}">${cname}</td>
+    <td><input class="inline-inp" data-field="business_name" value="${(c.business_name||'').replace(/"/g,'&quot;')}" placeholder="Business name..."></td>
+    <td><input class="inline-inp" data-field="data_type" value="${(c.data_type||'').replace(/"/g,'&quot;')}" style="width:90px"></td>
+    <td><select class="inline-sel" data-field="semantic_role">${roles.map(r=>`<option${r===(c.semantic_role||'')?'selected':''}>${r}</option>`).join('')}</select></td>
+    <td style="text-align:center"><input type="checkbox" data-field="nullable" ${c.nullable!==false?'checked':''}></td>
+    <td style="text-align:center"><input type="checkbox" data-field="pk" ${c.pk?'checked':''}></td>
+    <td><input class="inline-inp" data-field="description" value="${(c.description||c.record_level_info||'').substring(0,150).replace(/"/g,'&quot;')}" placeholder="Description..." style="width:100%"></td>
+    <td><button onclick="deleteCol('${name}','${cname}')" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:13px;padding:2px 4px;opacity:0.4" title="Delete" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button></td>
   </tr>`).join('');
 
   document.getElementById('detail-cols').innerHTML=`
     <div class="section-bar"><span class="section-title">Columns</span></div>
-    <table class="col-tbl"><thead><tr><th>#</th><th>Column</th><th>Type</th><th>Role</th><th>Null</th><th>Key</th><th>Description</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+    <table class="col-tbl"><thead><tr><th>#</th><th>Column</th><th>Business Name</th><th>Type</th><th>Role</th><th>Null</th><th>PK</th><th>Description</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     <button class="add-btn" onclick="addCol('${name}')">+ Add Column</button>`;
 
   document.getElementById('detail-edit').innerHTML='';
   document.getElementById('detail').scrollIntoView({behavior:'smooth'});
 }
 
-function editCol(table,col){
-  const c=currentTable.columns[col];
-  if(!c)return;
-  const fields=[
-    {n:'business_name',t:'text'},{n:'description',t:'text'},{n:'semantic_role',t:'select',opts:['identifier','dimension','measure','flag','date','lookup','metric','code','status']},
-    {n:'data_type',t:'text'},{n:'default_aggregation',t:'select',opts:['','SUM','COUNT','AVG','MAX','MIN']},{n:'aggregation_behavior',t:'select',opts:['','additive','semi_additive','non_additive']},
-  ];
-  const bools=['nullable','aggregatable','filterable','sortable','groupable','categorical','pk'];
-  let html=`<div class="edit-form"><h4 style="font-size:14px;margin-bottom:12px">✏️ Edit: ${col}</h4><div class="row">`;
-  fields.forEach(f=>{
-    const v=c[f.n]||'';
-    if(f.t==='select'){
-      html+=`<div><label>${f.n}</label><select name="${f.n}">${f.opts.map(o=>`<option${o===v?' selected':''}>${o}</option>`).join('')}</select></div>`;
-    }else{
-      html+=`<div><label>${f.n}</label><input name="${f.n}" value="${String(v).replace(/"/g,'&quot;')}"></div>`;
-    }
+async function autoSave(el){
+  const row=el.closest('tr');
+  const table=row.dataset.table;
+  const col=row.dataset.col;
+  const updates={};
+  row.querySelectorAll('.inline-inp,.inline-sel').forEach(e=>{if(e.value)updates[e.dataset.field]=e.value});
+  row.querySelectorAll('input[type=checkbox]').forEach(e=>{updates[e.dataset.field]=e.checked});
+  row.style.borderLeft='2px solid #d29922';
+  const d=await fetch(API+'/api/schema/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table_name:table,column_name:col,updates})}).then(r=>r.json());
+  row.style.borderLeft=d.status==='saved'?'2px solid #3fb950':'2px solid #f85149';
+  setTimeout(()=>{row.style.borderLeft='none'},1500);
+}
+
+// Attach auto-save listeners
+document.addEventListener('change',e=>{
+  if(e.target.closest('tr[data-table]')&&(e.target.classList.contains('inline-inp')||e.target.classList.contains('inline-sel')||e.target.type==='checkbox'))autoSave(e.target);
+});
+document.addEventListener('blur',e=>{
+  if(e.target.closest('tr[data-table]')&&e.target.classList.contains('inline-inp'))autoSave(e.target);
+},true);
+async function showVersions(table){
+  const d=await fetch(API+'/api/schema/'+table+'/versions').then(r=>r.json());
+  if(!d.versions||!d.versions.length){alert('No versions found');return}
+  let html='<div style="padding:16px 20px;border-top:1px solid #30363d"><div style="font-size:13px;font-weight:600;margin-bottom:12px">🕐 Version History</div>';
+  d.versions.forEach(v=>{
+    const label=v.current?'<span style="color:#3fb950;font-size:11px;font-weight:600">CURRENT</span>':'<button onclick="restoreVersion(\''+table+'\',\''+v.file+'\')" style="background:none;border:1px solid #30363d;border-radius:4px;color:#58a6ff;cursor:pointer;font-size:11px;padding:2px 8px">Restore</button>';
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #21262d">
+      <div><span style="font-weight:500;font-size:13px">${v.file}</span> <span style="color:#8b949e;font-size:11px;margin-left:8px">v${v.version} · ${(v.last_updated||'').substring(0,19)}</span></div>
+      ${label}
+    </div>`;
   });
-  html+='</div><div style="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0">';
-  bools.forEach(b=>{html+=`<div class="cb"><input type="checkbox" name="${b}" ${c[b]?'checked':''}><label>${b}</label></div>`});
-  html+=`</div><div style="display:flex;gap:8px;margin-top:12px">
-    <button class="btn-save" onclick="saveCol('${table}','${col}')">💾 Save</button>
-    <button class="btn-cancel" onclick="showDetail('${table}')">Cancel</button>
-  </div></div>`;
+  html+='</div>';
   document.getElementById('detail-edit').innerHTML=html;
-  document.getElementById('detail-edit').scrollIntoView({behavior:'smooth'});
+}
+
+async function restoreVersion(table,file){
+  if(!confirm('Restore '+file+'? Current version will be backed up.'))return;
+  const d=await fetch(API+'/api/schema/'+table+'/restore/'+file,{method:'POST'}).then(r=>r.json());
+  if(d.status==='restored'){showDetail(table)}
+  else{alert(d.error||'Restore failed')}
+}
+
+async function deleteCol(table,col){
+  if(!confirm('Delete column "'+col+'" from '+table+'?'))return;
+  const td=await fetch(API+'/api/schema/'+table).then(r=>r.json());
+  if(td.columns&&td.columns[col]){
+    delete td.columns[col];
+    const d=await fetch(API+'/api/schema/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table_name:table,yaml_data:td})}).then(r=>r.json());
+    if(d.status==='saved')showDetail(table);
+  }
 }
 
 function addCol(table){
@@ -233,15 +292,6 @@ function addCol(table){
   </div></div>`;
   document.getElementById('detail-edit').innerHTML=html;
   document.getElementById('detail-edit').scrollIntoView({behavior:'smooth'});
-}
-
-async function saveCol(table,col){
-  const form=document.querySelector('.edit-form');
-  const updates={};
-  form.querySelectorAll('input[type=text],input:not([type]),select').forEach(el=>{if(el.name&&el.value)updates[el.name]=el.value});
-  form.querySelectorAll('input[type=checkbox]').forEach(el=>{updates[el.name]=el.checked});
-  const d=await fetch(API+'/api/schema/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table_name:table,column_name:col,updates})}).then(r=>r.json());
-  if(d.status==='saved'){showDetail(table)}
 }
 
 async function saveNewCol(table){

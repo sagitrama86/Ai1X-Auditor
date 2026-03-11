@@ -45,6 +45,7 @@ async function cmdHelp(){
     ['/hedis &lt;question&gt;','Ask about HEDIS specs'],
     ['/plan &lt;task&gt;','Break down a task into steps'],
     ['/discover','Connect to DB and discover schema'],
+    ['/model','View or switch LLM model'],
     ['/skills','Browse skills library'],
     ['/health','Backend status'],
     ['/clear','Clear terminal'],
@@ -276,6 +277,39 @@ async function cmdDiscover(){
   print('<span class="dim">Saved to skills/schema/*.yaml</span>');
 }
 
+async function cmdModel(args){
+  if(args.length){
+    // Set model
+    const provider=args[0];
+    const model=args[1]||'';
+    const key=args[2]||'';
+    print('<span class="dim">switching model...</span>');
+    const d=await api('POST','/api/model',{provider,model,api_key:key});
+    out.lastChild?.remove();
+    if(!d||d.error){print('<span class="err">✕ '+(d?.error||'Failed')+'</span>');return}
+    print('<span class="ok">✓ Switched to '+esc(d.provider)+' / '+esc(d.model)+'</span>');
+  }else{
+    // Show current + available
+    const d=await api('GET','/api/model');
+    if(!d)return;
+    print('<span class="bold">🤖 Current Model</span>');
+    print('  Provider: <span class="cyan">'+esc(d.provider||'')+'</span>');
+    print('  Model:    <span class="bold">'+esc(d.model||'')+'</span>');
+    print('  URL:      <span class="dim">'+esc(d.url||'')+'</span>');
+    if(d.available&&d.available.length){
+      print('');
+      print('<span class="bold">Available Ollama Models:</span>');
+      d.available.forEach(m=>print('  '+esc(m)));
+    }
+    print('');
+    print('<span class="bold">Switch model:</span>');
+    print('  <span class="cyan">/model ollama llama3.2</span>');
+    print('  <span class="cyan">/model ollama mistral</span>');
+    print('  <span class="cyan">/model openai gpt-4o sk-...</span>');
+    print('  <span class="cyan">/model anthropic claude-sonnet-4-20250514 sk-...</span>');
+  }
+}
+
 async function cmdCompare(args){
   if(args.length<2){print('<span class="err">Usage: /compare &lt;pbi.csv&gt; &lt;sql.csv&gt;</span>');return}
   print('<span class="err">✕ File upload not supported in browser terminal. Use the Compare page or the Python CLI.</span>');
@@ -304,6 +338,7 @@ async function run(input){
   else if(cmd==='/hedis')await cmdHedis(args);
   else if(cmd==='/plan')await cmdPlan(args);
   else if(cmd==='/discover')await cmdDiscover();
+  else if(cmd==='/model')await cmdModel(args);
   else if(cmd==='/compare')await cmdCompare(args);
   else if(cmd==='/clear'){out.innerHTML='';banner();}
   else if(cmd.startsWith('/'))print('<span class="err">Unknown command: '+esc(cmd)+'. Type /help</span>');

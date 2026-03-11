@@ -37,7 +37,7 @@ clinicalmeasureid:
   fk_target: measuredetails.clinicalmeasureid (conditional)
 keyvaluemeasureid:
   business_name: Key Value Measure ID
-  semantic_role: lookup
+  semantic_role: identifier
   aggregatable: false
   description: Primary join key to measuredetails. Takes precedence over clinicalmeasureid.
   fk_target: measuredetails.measureid (conditional)
@@ -130,7 +130,7 @@ patientSSUI:
   description: Used for COUNT when measuretype = 'Patient-Process'. NULL otherwise.
 visitSSUI:
   business_name: Visit SSUI
-  semantic_role: identifier
+  semantic_role: dimension
   aggregatable: true
   default_aggregation: COUNT
   aggregation_behavior: non_additive
