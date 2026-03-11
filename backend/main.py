@@ -104,6 +104,27 @@ def get_report(report_id: str):
         return {"error": f"Report '{report_id}' not found"}
     return r
 
+# ---- Report Edit ----
+
+class ReportEditRequest(BaseModel):
+    report_id: str
+    updates: dict
+
+@app.post("/api/reports/{report_id}/edit")
+def api_report_edit(report_id: str, req: ReportEditRequest):
+    import yaml
+    from pathlib import Path
+    reports = load_reports()
+    r = reports.get(report_id)
+    if not r:
+        return {"error": f"Report '{report_id}' not found"}
+    for k, v in req.updates.items():
+        r[k] = v
+    filepath = Path(__file__).parent.parent / "skills" / "reports" / f"{report_id}.yaml"
+    with open(filepath, "w") as f:
+        yaml.dump(r, f, default_flow_style=False, sort_keys=False)
+    return {"status": "saved", "report_id": report_id}
+
 # ---- SQL Generation ----
 
 class SQLRequest(BaseModel):

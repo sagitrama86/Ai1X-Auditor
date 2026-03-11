@@ -101,11 +101,12 @@ async function init(){
   const resp=await fetch(API+'/api/reports');
   const data=await resp.json();
   const sel=document.getElementById('report-select');
+  const urlId=new URLSearchParams(location.search).get('id');
   data.reports.forEach(r=>{
-    sel.innerHTML+=`<option value="${r.report_id}">${r.report_name} (${r.fields_count} fields)</option>`;
+    sel.innerHTML+=`<option value="${r.report_id}" ${r.report_id===urlId?'selected':''}>${r.report_name} (${r.fields_count} fields)</option>`;
   });
-  // Load first report's slicers
-  loadSlicers(data.reports[0].report_id);
+  const startId=urlId||data.reports[0]?.report_id;
+  if(startId)loadSlicers(startId);
   sel.onchange=()=>loadSlicers(sel.value);
 }
 

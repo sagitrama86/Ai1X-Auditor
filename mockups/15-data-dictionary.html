@@ -36,8 +36,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .type-badge.fact{background:#1f6feb22;color:#58a6ff}
 .type-badge.dimension{background:#3fb95022;color:#3fb950}
 .type-badge.lookup{background:#a371f722;color:#a371f7}
-.detail{background:#161b22;border:1px solid #30363d;border-radius:12px;margin-top:16px;overflow:hidden;display:none}
-.detail.show{display:block}
+.detail{position:fixed;top:0;right:-60%;width:60%;height:100vh;background:#161b22;border-left:1px solid #30363d;overflow-y:auto;transition:right .3s ease;z-index:20;display:block}
+.detail.show{right:0}
+.detail-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:19;display:none}
+.detail-overlay.show{display:block}
 .detail-header{padding:16px 20px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between}
 .detail-header h3{font-size:16px;font-weight:600}
 .col-tbl{width:100%;border-collapse:collapse}
@@ -68,6 +70,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .section-bar{padding:12px 20px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between}
 .section-title{font-size:13px;font-weight:600;color:#c9d1d9}
 .tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#1f6feb22;color:#58a6ff;margin:1px}
+.tab-bar{display:flex;border-bottom:1px solid #30363d;padding:0 20px}
+.tab{padding:10px 16px;font-size:13px;color:#8b949e;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab:hover{color:#c9d1d9}
+.tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
 </style>
 </head>
 <body>
@@ -96,13 +102,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="stats" id="stats"></div>
   <div style="margin-bottom:12px"><input class="inp" placeholder="Filter tables..." style="width:300px" id="filter" oninput="renderTables()"></div>
   <table class="tbl"><thead><tr><th>Table</th><th>Type</th><th>Columns</th><th>Rows</th><th>Description</th></tr></thead><tbody id="tbody"></tbody></table>
+  <div class="detail-overlay" id="detail-overlay" onclick="closeDetail()"></div>
   <div class="detail" id="detail">
-    <div class="detail-header"><h3 id="detail-title"></h3><button onclick="document.getElementById('detail').classList.remove('show')" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:16px">✕</button></div>
+    <div class="detail-header"><h3 id="detail-title"></h3><button onclick="closeDetail()" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:16px">✕</button></div>
     <div id="detail-desc"></div>
-    <div id="detail-meta"></div>
-    <div id="detail-joins"></div>
-    <div id="detail-problems"></div>
-    <div id="detail-cols"></div>
+    <div class="tab-bar" id="tab-bar"></div>
+    <div id="tab-content"></div>
     <div id="detail-edit"></div>
   </div>
 </div>
@@ -140,81 +145,234 @@ function renderTables(){
   </tr>`).join('');
 }
 
+// Overview auto-save
+document.addEventListener('blur',e=>{
+  if(e.target.classList.contains('ov-edit')){
+    const field=e.target.dataset.field;
+    const val=e.target.value;
+    const{name}=window._tabData;
+    fetch(API+'/api/schema/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table_name:name,updates:{[field]:val}})});
+    window._tabData.t[field]=val;
+  }
+  if(e.target.classList.contains('vd-val')){
+    const col=e.target.dataset.col,key=e.target.dataset.key,val=e.target.value;
+    const{name,t}=window._tabData;
+    if(!t.value_dictionary)t.value_dictionary={};
+    if(!t.value_dictionary[col])t.value_dictionary[col]={};
+    t.value_dictionary[col][key]=val;
+    saveFullTable(name,t);
+  }
+},true);
+
+async function saveFullTable(name,t){
+  await fetch(API+'/api/schema/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table_name:name,yaml_data:t})});
+}
+
+async function addVdEntry(table,col){
+  const k=document.getElementById('vd-newkey-'+col).value.trim();
+  const v=document.getElementById('vd-newval-'+col).value.trim();
+  if(!k)return;
+  const{t}=window._tabData;
+  if(!t.value_dictionary)t.value_dictionary={};
+  if(!t.value_dictionary[col])t.value_dictionary[col]={};
+  t.value_dictionary[col][k]=v||k;
+  await saveFullTable(table,t);
+  switchTab('values');
+}
+
+async function deleteVdEntry(table,col,key){
+  const{t}=window._tabData;
+  if(t.value_dictionary&&t.value_dictionary[col]){
+    delete t.value_dictionary[col][key];
+    await saveFullTable(table,t);
+    switchTab('values');
+  }
+}
+
+async function deleteVdCol(table,col){
+  if(!confirm('Remove '+col+' from value dictionary?'))return;
+  const{t}=window._tabData;
+  if(t.value_dictionary){delete t.value_dictionary[col]}
+  await saveFullTable(table,t);
+  switchTab('values');
+}
+
+async function addVdColumn(table){
+  const col=document.getElementById('vd-newcol').value.trim();
+  if(!col)return;
+  const{t}=window._tabData;
+  if(!t.value_dictionary)t.value_dictionary={};
+  t.value_dictionary[col]={};
+  await saveFullTable(table,t);
+  switchTab('values');
+}
+
+function makeDescEditable(table){
+  const el=document.getElementById('desc-display');
+  const t=window._tabData.t;
+  el.innerHTML=`<textarea style="width:100%;min-height:60px;background:#0d1117;border:1px solid #58a6ff;border-radius:4px;color:#c9d1d9;padding:8px;font-size:13px;font-family:inherit;resize:vertical" onblur="saveDesc('${table}',this.value)">${t.description||''}</textarea>`;
+  el.querySelector('textarea').focus();
+}
+
+async function saveDesc(table,val){
+  window._tabData.t.description=val;
+  await fetch(API+'/api/schema/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({table_name:table,updates:{description:val}})});
+  document.getElementById('desc-display').innerHTML=val||'<em>No description</em>';
+  document.getElementById('desc-display').style.cursor='pointer';
+}
+
+function closeDetail(){
+  document.getElementById('detail').classList.remove('show');
+  document.getElementById('detail-overlay').classList.remove('show');
+}
+
 async function showDetail(name){
   const resp=await fetch(API+'/api/schema/'+name);
   const t=await resp.json();
   if(t.error)return;
   currentTable=t;
   document.getElementById('detail').classList.add('show');
+  document.getElementById('detail-overlay').classList.add('show');
   document.getElementById('detail-title').textContent=name+' — '+Object.keys(t.columns||{}).length+' columns';
-  document.getElementById('detail-desc').innerHTML=`<div class="desc-box">${t.description||'<em>No description</em>'}
+  document.getElementById('detail-desc').innerHTML=`<div class="desc-box" id="desc-display" onclick="makeDescEditable('${name}')" style="cursor:pointer" title="Click to edit">${t.description||'<em>No description</em>'}
     <span style="float:right;font-size:11px;color:#484f58">v${t.version||'?'} · ${t.last_updated?t.last_updated.substring(0,10):'—'}</span>
-    <button onclick="showVersions('${name}')" style="float:right;margin-right:12px;background:none;border:1px solid #30363d;border-radius:4px;color:#58a6ff;cursor:pointer;font-size:11px;padding:2px 8px">🕐 Versions</button>
+    <button onclick="event.stopPropagation();showVersions('${name}')" style="float:right;margin-right:12px;background:none;border:1px solid #30363d;border-radius:4px;color:#58a6ff;cursor:pointer;font-size:11px;padding:2px 8px">🕐 Versions</button>
   </div>`;
 
-  // Metadata
-  const grain=t.grain||{};
-  const intent=t.table_intent||{};
-  let meta='';
-  if(t.classification||t.domain||grain.description){
-    meta+='<div class="section-bar"><span class="section-title">Metadata</span></div><div style="padding:12px 20px;font-size:12px">';
-    if(t.classification)meta+=`<div style="padding:2px 0"><span style="color:#8b949e;min-width:100px;display:inline-block">Type:</span> <span class="tag">${t.classification}</span></div>`;
-    if(t.domain)meta+=`<div style="padding:2px 0"><span style="color:#8b949e;min-width:100px;display:inline-block">Domain:</span> ${t.domain}</div>`;
-    if(grain.description)meta+=`<div style="padding:2px 0"><span style="color:#8b949e;min-width:100px;display:inline-block">Grain:</span> ${grain.description}</div>`;
-    if(grain.composite_primary_key)meta+=`<div style="padding:2px 0"><span style="color:#8b949e;min-width:100px;display:inline-block">Primary Key:</span> ${grain.composite_primary_key.join(' + ')}</div>`;
-    if(intent.query_warnings)intent.query_warnings.forEach(w=>{meta+=`<div style="padding:2px 0;color:#d29922">⚠ ${w}</div>`});
-    meta+='</div>';
-  }
-  document.getElementById('detail-meta').innerHTML=meta;
+  // Build tab content
+  window._tabData={name,t};
+  document.getElementById('tab-bar').innerHTML=`
+    <div class="tab active" onclick="switchTab('overview')">Overview</div>
+    <div class="tab" onclick="switchTab('columns')">Columns</div>
+    <div class="tab" onclick="switchTab('relationships')">Relationships</div>
+    <div class="tab" onclick="switchTab('values')">Values</div>`;
+  switchTab('overview');
+  document.getElementById('detail-edit').innerHTML='';
+}
 
-  // Joins
-  const joins=t.joins_with||[];
-  if(joins.length){
-    document.getElementById('detail-joins').innerHTML=`
-      <div class="section-bar"><span class="section-title">Joins (${joins.length})</span></div>
-      <div style="padding:8px 20px">${joins.map(j=>`
-        <div style="padding:6px 0;border-bottom:1px solid #21262d;font-size:12px">
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>{t.classList.toggle('active',t.textContent.toLowerCase()===tab)});
+  const{name,t}=window._tabData;
+  const tc=document.getElementById('tab-content');
+
+  if(tab==='columns'){
+    const cols=t.columns||{};
+    const roles=['identifier','dimension','measure','flag','date','lookup','metric','code','status'];
+    const rows=Object.entries(cols).map(([cname,c],i)=>`<tr data-col="${cname}" data-table="${name}">
+      <td style="color:#484f58">${i+1}</td>
+      <td style="font-weight:500;${c.pk?'color:#d29922':''}">${cname}</td>
+      <td><input class="inline-inp" data-field="business_name" value="${(c.business_name||'').replace(/"/g,'&quot;')}" placeholder="Business name..."></td>
+      <td><input class="inline-inp" data-field="data_type" value="${(c.data_type||'').replace(/"/g,'&quot;')}" style="width:90px"></td>
+      <td><select class="inline-sel" data-field="semantic_role">${roles.map(r=>`<option${r===(c.semantic_role||'')?'selected':''}>${r}</option>`).join('')}</select></td>
+      <td style="text-align:center"><input type="checkbox" data-field="nullable" ${c.nullable!==false?'checked':''}></td>
+      <td style="text-align:center"><input type="checkbox" data-field="pk" ${c.pk?'checked':''}></td>
+      <td><input class="inline-inp" data-field="description" value="${(c.description||c.record_level_info||'').substring(0,150).replace(/"/g,'&quot;')}" placeholder="Description..." style="width:100%"></td>
+      <td><button onclick="deleteCol('${name}','${cname}')" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:13px;padding:2px 4px;opacity:0.4" title="Delete" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button></td>
+    </tr>`).join('');
+    tc.innerHTML=`<table class="col-tbl"><thead><tr><th>#</th><th>Column</th><th>Business Name</th><th>Type</th><th>Role</th><th>Null</th><th>PK</th><th>Description</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <button class="add-btn" onclick="addCol('${name}')">+ Add Column</button>`;
+
+  }else if(tab==='overview'){
+    const grain=t.grain||{};
+    const intent=t.table_intent||{};
+    const probs=t.problems_and_suggestions||[];
+    let html='<div style="padding:16px 20px;font-size:12px">';
+    html+=`<div style="padding:4px 0"><span style="color:#8b949e;min-width:120px;display:inline-block">Classification:</span> <span class="tag">${t.classification||'—'}</span></div>`;
+    if(t.domain)html+=`<div style="padding:4px 0"><span style="color:#8b949e;min-width:120px;display:inline-block">Domain:</span> ${t.domain}</div>`;
+    if(t.row_count_approx)html+=`<div style="padding:4px 0"><span style="color:#8b949e;min-width:120px;display:inline-block">Row Count:</span> ~${Number(t.row_count_approx).toLocaleString()}</div>`;
+    if(grain.description)html+=`<div style="padding:4px 0"><span style="color:#8b949e;min-width:120px;display:inline-block">Grain:</span> ${grain.description}</div>`;
+    if(grain.composite_primary_key)html+=`<div style="padding:4px 0"><span style="color:#8b949e;min-width:120px;display:inline-block">Primary Key:</span> ${grain.composite_primary_key.join(' + ')}</div>`;
+    if(grain.deduplication_logic)html+=`<div style="padding:4px 0"><span style="color:#8b949e;min-width:120px;display:inline-block">Dedup:</span> <code style="font-size:11px;background:#0d1117;padding:2px 6px;border-radius:4px">${grain.deduplication_logic}</code></div>`;
+    if(intent.ai_primary_usage)html+=`<div style="padding:4px 0"><span style="color:#8b949e;min-width:120px;display:inline-block">AI Usage:</span> ${intent.ai_primary_usage.join(', ')}</div>`;
+    if(intent.typical_filters)html+=`<div style="padding:4px 0"><span style="color:#8b949e;min-width:120px;display:inline-block">Typical Filters:</span> ${intent.typical_filters.join(', ')}</div>`;
+    if(intent.query_warnings)(intent.query_warnings).forEach(w=>{html+=`<div style="padding:4px 0;color:#d29922">⚠ ${w}</div>`});
+    if(intent.common_business_questions){
+      html+='<div style="margin-top:12px;font-weight:600;margin-bottom:4px">Common Questions:</div>';
+      intent.common_business_questions.forEach(q=>{html+=`<div style="padding:2px 0;color:#8b949e">❓ ${q}</div>`});
+    }
+    if(probs.length){
+      html+='<div style="margin-top:16px;font-weight:600;margin-bottom:4px">⚠ Problems & Suggestions:</div>';
+      probs.forEach(p=>{html+=`<div style="padding:6px 0;border-bottom:1px solid #21262d"><div style="color:#d29922;font-weight:600">⚠ ${p.problem}</div><div style="color:#8b949e;margin-top:2px">💡 ${p.suggestion}</div></div>`});
+    }
+    html+='</div>';
+    tc.innerHTML=html;
+
+  }else if(tab==='relationships'){
+    let html='<div style="padding:16px 20px">';
+    // Joins
+    const joins=t.joins_with||[];
+    if(joins.length){
+      html+='<div style="font-weight:600;margin-bottom:8px">Joins ('+joins.length+')</div>';
+      joins.forEach(j=>{
+        html+=`<div style="padding:8px 0;border-bottom:1px solid #21262d;font-size:12px">
           <span style="color:#3fb950;font-weight:600">${j.join_type||'INNER'}</span> → <span style="font-weight:500">${j.table||''}</span>
           <span style="color:#8b949e;margin-left:8px">${j.relationship||''}</span>
-          ${j.on?'<span style="color:#484f58;margin-left:8px">on '+j.on.join(' + ')+'</span>':''}
-          ${j.on_expression?'<div style="color:#a371f7;font-size:11px;margin-top:2px;font-family:monospace">'+j.on_expression.substring(0,120)+'</div>':''}
+          ${j.on?'<div style="color:#484f58;font-size:11px;margin-top:2px">ON '+j.on.join(' + ')+'</div>':''}
+          ${j.on_expression?'<div style="color:#a371f7;font-size:11px;margin-top:2px;font-family:monospace">'+String(j.on_expression).substring(0,150)+'</div>':''}
           <div style="color:#8b949e;font-size:11px">${j.purpose||''}</div>
           ${j.note?'<div style="color:#d29922;font-size:11px">⚠ '+j.note+'</div>':''}
-        </div>`).join('')}
-      </div>`;
-  }else{
-    document.getElementById('detail-joins').innerHTML='';
+        </div>`;
+      });
+    }else{html+='<div style="color:#484f58;font-size:13px">No joins defined.</div>';}
+    // Column relationships
+    const rels=t.column_relationships||[];
+    if(rels.length){
+      html+='<div style="font-weight:600;margin-top:20px;margin-bottom:8px">Column Relationships ('+rels.length+')</div>';
+      rels.forEach(r=>{
+        html+=`<div style="padding:6px 0;border-bottom:1px solid #21262d;font-size:12px">
+          <span style="color:#58a6ff">${r.column_a}</span> ↔ <span style="color:#58a6ff">${r.column_b}</span>
+          <span class="tag">${r.relationship_type||''}</span>
+          <div style="color:#8b949e;font-size:11px;margin-top:2px">${r.rule||''}</div>
+        </div>`;
+      });
+    }
+    // Derived columns
+    const derived=t.derived_columns||[];
+    if(derived.length){
+      html+='<div style="font-weight:600;margin-top:20px;margin-bottom:8px">Derived Columns ('+derived.length+')</div>';
+      derived.forEach(d=>{
+        html+=`<div style="padding:6px 0;border-bottom:1px solid #21262d;font-size:12px">
+          <span style="font-weight:500">${d.name}</span> <span style="color:#8b949e">— ${d.description||''}</span>
+          ${d.formula?'<div style="background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:6px 8px;margin-top:4px;font-family:monospace;font-size:11px;white-space:pre-wrap;color:#c9d1d9">'+d.formula+'</div>':''}
+          ${d.depends_on?'<div style="color:#484f58;font-size:11px;margin-top:2px">Depends on: '+d.depends_on.join(', ')+'</div>':''}
+        </div>`;
+      });
+    }
+    html+='</div>';
+    tc.innerHTML=html;
+
+  }else if(tab==='values'){
+    let html='<div style="padding:16px 20px">';
+    const vd=t.value_dictionary||{};
+    const entries=Object.entries(vd);
+    if(entries.length){
+      html+='<div style="font-weight:600;margin-bottom:8px">Value Dictionary</div>';
+      entries.forEach(([col,vals])=>{
+        html+=`<div style="margin-bottom:16px"><div style="font-weight:500;font-size:13px;margin-bottom:6px;color:#58a6ff">${col} <button onclick="deleteVdCol('${name}','${col}')" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:11px;opacity:0.4" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕ remove</button></div>`;
+        Object.entries(vals).forEach(([k,v])=>{
+          html+=`<div style="display:flex;gap:8px;padding:3px 0;font-size:12px;border-bottom:1px solid #21262d;align-items:center">
+            <code style="min-width:60px;background:#0d1117;padding:1px 6px;border-radius:3px;font-size:11px">${k}</code>
+            <input class="inline-inp vd-val" data-col="${col}" data-key="${k}" value="${String(v).replace(/"/g,'&quot;')}" style="flex:1">
+            <button onclick="deleteVdEntry('${name}','${col}','${k}')" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:11px;opacity:0.4" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button>
+          </div>`;
+        });
+        html+=`<div style="display:flex;gap:8px;margin-top:6px">
+          <input class="inline-inp" id="vd-newkey-${col}" placeholder="Code..." style="width:80px">
+          <input class="inline-inp" id="vd-newval-${col}" placeholder="Label..." style="flex:1">
+          <button onclick="addVdEntry('${name}','${col}')" style="background:none;border:1px dashed #30363d;border-radius:4px;color:#8b949e;cursor:pointer;font-size:11px;padding:2px 8px">+ Add</button>
+        </div>`;
+        html+='</div>';
+      });
+    }else{
+      html+='<div style="color:#484f58;font-size:13px;margin-bottom:12px">No value dictionary defined.</div>';
+    }
+    html+=`<div style="display:flex;gap:8px;margin-top:12px">
+      <input class="inline-inp" id="vd-newcol" placeholder="Column name..." style="width:160px">
+      <button onclick="addVdColumn('${name}')" class="add-btn" style="margin:0">+ Add Column to Dictionary</button>
+    </div>`;
+    html+='</div>';
+    tc.innerHTML=html;
   }
-
-  // Problems
-  const probs=(t.problems_and_suggestions||[]);
-  document.getElementById('detail-problems').innerHTML=probs.map(p=>`<div class="problem"><div class="problem-title">⚠ ${p.problem}</div><div class="problem-text">💡 ${p.suggestion}</div></div>`).join('');
-
-  // Columns
-  const cols=t.columns||{};
-  const roles=['identifier','dimension','measure','flag','date','lookup','metric','code','status'];
-  const aggs=['','SUM','COUNT','AVG','MAX','MIN'];
-  const aggBehaviors=['','additive','semi_additive','non_additive'];
-
-  let rows=Object.entries(cols).map(([cname,c],i)=>`<tr data-col="${cname}" data-table="${name}">
-    <td style="color:#484f58">${i+1}</td>
-    <td style="font-weight:500;${c.pk?'color:#d29922':''}">${cname}</td>
-    <td><input class="inline-inp" data-field="business_name" value="${(c.business_name||'').replace(/"/g,'&quot;')}" placeholder="Business name..."></td>
-    <td><input class="inline-inp" data-field="data_type" value="${(c.data_type||'').replace(/"/g,'&quot;')}" style="width:90px"></td>
-    <td><select class="inline-sel" data-field="semantic_role">${roles.map(r=>`<option${r===(c.semantic_role||'')?'selected':''}>${r}</option>`).join('')}</select></td>
-    <td style="text-align:center"><input type="checkbox" data-field="nullable" ${c.nullable!==false?'checked':''}></td>
-    <td style="text-align:center"><input type="checkbox" data-field="pk" ${c.pk?'checked':''}></td>
-    <td><input class="inline-inp" data-field="description" value="${(c.description||c.record_level_info||'').substring(0,150).replace(/"/g,'&quot;')}" placeholder="Description..." style="width:100%"></td>
-    <td><button onclick="deleteCol('${name}','${cname}')" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:13px;padding:2px 4px;opacity:0.4" title="Delete" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button></td>
-  </tr>`).join('');
-
-  document.getElementById('detail-cols').innerHTML=`
-    <div class="section-bar"><span class="section-title">Columns</span></div>
-    <table class="col-tbl"><thead><tr><th>#</th><th>Column</th><th>Business Name</th><th>Type</th><th>Role</th><th>Null</th><th>PK</th><th>Description</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-    <button class="add-btn" onclick="addCol('${name}')">+ Add Column</button>`;
-
-  document.getElementById('detail-edit').innerHTML='';
-  document.getElementById('detail').scrollIntoView({behavior:'smooth'});
 }
 
 async function autoSave(el){

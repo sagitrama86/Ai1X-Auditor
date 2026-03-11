@@ -120,9 +120,10 @@ const API='http://localhost:8000';
 let pbiCSV='',sqlCSV='';
 
 // Load reports
+const urlId=new URLSearchParams(location.search).get('id');
 fetch(API+'/api/reports').then(r=>r.json()).then(d=>{
   const sel=document.getElementById('report-sel');
-  d.reports.forEach(r=>{sel.innerHTML+=`<option value="${r.report_id}">${r.report_name}</option>`;});
+  d.reports.forEach(r=>{sel.innerHTML+=`<option value="${r.report_id}" ${r.report_id===urlId?'selected':''}>${r.report_name}</option>`;});
 });
 
 function fileSelected(type,input){

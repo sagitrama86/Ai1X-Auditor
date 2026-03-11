@@ -43,6 +43,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .add-card:hover{border-color:#58a6ff}
 .add-card h3{font-size:16px;font-weight:600;margin:12px 0 8px}
 .add-card p{font-size:13px;color:#8b949e;text-align:center}
+.inp{width:100%;padding:10px 14px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e1e4e8;font-size:14px;font-family:inherit}
+.inp:focus{outline:none;border-color:#58a6ff}
+.inp::placeholder{color:#484f58}
+.btn-outline{background:transparent;color:#8b949e;border:1px solid #30363d}
+/* Slide panel */
+.panel{position:fixed;top:0;right:-60%;width:60%;height:100vh;background:#161b22;border-left:1px solid #30363d;overflow-y:auto;transition:right .3s ease;z-index:20}
+.panel.show{right:0}
+.panel-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:19;display:none}
+.panel-overlay.show{display:block}
+.panel-header{padding:16px 20px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between}
+.panel-header h3{font-size:16px;font-weight:600}
+.tab-bar{display:flex;border-bottom:1px solid #30363d;padding:0 20px}
+.tab{padding:10px 16px;font-size:13px;color:#8b949e;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab:hover{color:#c9d1d9}
+.tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;padding:8px 14px;font-size:10px;text-transform:uppercase;color:#484f58;border-bottom:1px solid #30363d;background:#0d1117}
+.tbl td{padding:7px 14px;border-bottom:1px solid #21262d;font-size:12px}
+.inline-inp{background:#0d1117;border:1px solid transparent;border-radius:3px;color:#c9d1d9;padding:3px 6px;font-size:11px;width:100%;font-family:inherit}
+.inline-inp:focus{border-color:#58a6ff;outline:none}
+.inline-inp:hover{border-color:#30363d}
+.inline-sel{background:#0d1117;border:1px solid transparent;border-radius:3px;color:#a371f7;padding:3px 4px;font-size:11px;cursor:pointer}
+.inline-sel:focus{border-color:#58a6ff;outline:none}
+.inline-sel:hover{border-color:#30363d}
+.add-btn{margin:10px 14px;padding:6px 14px;background:transparent;border:1px dashed #30363d;border-radius:8px;color:#8b949e;font-size:12px;cursor:pointer}
+.add-btn:hover{border-color:#58a6ff;color:#58a6ff}
+.section{padding:16px 20px}
+.section-title{font-size:13px;font-weight:600;margin-bottom:8px}
+.rule-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #21262d;font-size:12px}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#1f6feb22;color:#58a6ff}
+.chat-bar{padding:12px 20px;border-top:1px solid #30363d;display:flex;gap:8px;position:sticky;bottom:0;background:#161b22}
+.chat-inp{flex:1;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#e1e4e8;padding:8px 12px;font-size:13px;font-family:inherit}
+.chat-inp:focus{outline:none;border-color:#58a6ff}
+.chat-inp::placeholder{color:#484f58}
 </style>
 </head>
 <body>
@@ -67,35 +101,257 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="main">
   <div class="page-header">
     <div class="page-header-left"><h1>Reports</h1><p>Power BI reports configured for SQL validation.</p></div>
-    <button class="btn btn-primary" onclick="location='06-ai-chat.html'">+ Define New Report</button>
+    <button class="btn btn-primary" onclick="showNewReport()">+ New Report</button>
+  </div>
+  <!-- New report dialog -->
+  <div id="new-report" style="display:none;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;margin-bottom:20px">
+    <div style="font-size:16px;font-weight:600;margin-bottom:16px">Create New Report</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div><label style="font-size:13px;color:#8b949e;display:block;margin-bottom:4px">Report Name</label><input id="nr-name" class="inp" placeholder="e.g., Quality Dashboard — MeasureList"></div>
+      <div><label style="font-size:13px;color:#8b949e;display:block;margin-bottom:4px">Report Type</label><select id="nr-type" class="inp"><option>MeasureList</option><option>IDSSHierarchy</option><option>ProviderDetail</option><option>GapsInCare</option></select></div>
+    </div>
+    <div style="margin-bottom:16px"><label style="font-size:13px;color:#8b949e;display:block;margin-bottom:4px">Describe the fields you want (AI will generate the rest)</label><input id="nr-desc" class="inp" placeholder="e.g., Measures, Submission, Compliance %, Denominator, Compliant, Non Compliant"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="createReport()">⚡ Create Report</button>
+      <button class="btn btn-outline" onclick="document.getElementById('new-report').style.display='none'">Cancel</button>
+    </div>
+    <div id="nr-status" style="margin-top:12px;font-size:13px;display:none"></div>
   </div>
   <div class="reports-grid" id="grid"></div>
 </div>
+<div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+<div class="panel" id="panel">
+  <div class="panel-header"><h3 id="panel-title">Report</h3><button onclick="closePanel()" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:16px">✕</button></div>
+  <div class="tab-bar" id="panel-tabs"></div>
+  <div id="panel-content"></div>
+  <div class="chat-bar" style="display:none"></div>
+</div>
 <script>
 const API='http://localhost:8000';
-async function init(){
+let currentReport=null;
+let currentReportId=null;
+
+function closePanel(){
+  document.getElementById('panel').classList.remove('show');
+  document.getElementById('panel-overlay').classList.remove('show');
+}
+
+function showNewReport(){
+  document.getElementById('new-report').style.display='block';
+  document.getElementById('nr-name').focus();
+}
+
+async function createReport(){
+  const name=document.getElementById('nr-name').value.trim();
+  const type=document.getElementById('nr-type').value;
+  const desc=document.getElementById('nr-desc').value.trim();
+  if(!name){alert('Enter a report name');return}
+  const msg=document.getElementById('nr-status');
+  msg.style.display='block';msg.style.color='#8b949e';msg.textContent='Creating report...';
+  const prompt='Create '+type+' report '+name+' with '+(desc||'standard fields');
+  const d=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:prompt})}).then(r=>r.json());
+  if(d.response){
+    msg.style.color='#3fb950';msg.textContent='✅ Report created. Refreshing...';
+    setTimeout(()=>{document.getElementById('new-report').style.display='none';loadReports()},1000);
+  }else{msg.style.color='#f85149';msg.textContent='❌ Failed';}
+}
+
+async function loadReports(){
   const resp=await fetch(API+'/api/reports');
   const data=await resp.json();
   const grid=document.getElementById('grid');
-  data.reports.forEach(r=>{
+  grid.innerHTML='';
+  (data.reports||[]).forEach(r=>{
     grid.innerHTML+=`<div class="report-card">
       <div class="rc-header"><div class="rc-title">${r.report_name}</div><div class="rc-status">✓ ${r.status||'ready'}</div></div>
       <div class="rc-desc">${r.report_id} · ${r.fields_count} fields · ${r.slicers_count} slicers</div>
       <div class="rc-stats">
-        <a href="09-report-fields.html?id=${r.report_id}" target="_blank" class="rc-stat" style="text-decoration:none;position:relative;display:block"><svg style="position:absolute;top:6px;right:6px;width:12px;height:12px" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg><div class="rc-stat-val">${r.fields_count}</div><div class="rc-stat-label">Fields</div></a>
-        <a href="13-report-slicers.html?id=${r.report_id}" target="_blank" class="rc-stat" style="text-decoration:none;position:relative;display:block"><svg style="position:absolute;top:6px;right:6px;width:12px;height:12px" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg><div class="rc-stat-val">${r.slicers_count}</div><div class="rc-stat-label">Slicers</div></a>
-        <div class="rc-stat"><div class="rc-stat-val">8</div><div class="rc-stat-label">Validations</div></div>
+        <div class="rc-stat"><div class="rc-stat-val">${r.fields_count}</div><div class="rc-stat-label">Fields</div></div>
+        <div class="rc-stat"><div class="rc-stat-val">${r.slicers_count}</div><div class="rc-stat-label">Slicers</div></div>
+        <div class="rc-stat"><div class="rc-stat-val">—</div><div class="rc-stat-label">Validations</div></div>
       </div>
       <div class="rc-actions">
-        <button class="rc-btn gen" onclick="location='07-generate-sql.html'">⚡ Generate SQL</button>
-        <button class="rc-btn sec" onclick="location='10-compare.html'">⚖️ Compare</button>
-        <button class="rc-btn sec" onclick="location='06-ai-chat.html'">💬 Edit</button>
+        <button class="rc-btn gen" onclick="openReport('${r.report_id}')">📋 Details</button>
+        <button class="rc-btn sec" onclick="location='07-generate-sql.html?id=${r.report_id}'">🛢️ Generate SQL</button>
+        <button class="rc-btn sec" onclick="location='10-compare.html?id=${r.report_id}'">⚖️ Compare</button>
       </div>
     </div>`;
   });
-  grid.innerHTML+=`<div class="add-card" onclick="location='06-ai-chat.html'"><div style="font-size:32px">+</div><h3>Define New Report</h3><p>Chat with AI to create a new report definition.</p></div>`;
+  grid.innerHTML+=`<div class="add-card" onclick="showNewReport()"><div style="font-size:32px">+</div><h3>New Report</h3><p>Define a new report for SQL validation.</p></div>`;
 }
-init();
+
+async function openReport(id){
+  const resp=await fetch(API+'/api/reports/'+id);
+  currentReport=await resp.json();
+  currentReportId=id;
+  if(currentReport.error)return;
+  document.getElementById('panel-title').textContent=currentReport.report_name||id;
+  document.getElementById('panel-tabs').innerHTML=`
+    <div class="tab active" onclick="rpTab('config')">Config</div>
+    <div class="tab" onclick="rpTab('fields')">Fields</div>
+    <div class="tab" onclick="rpTab('slicers')">Slicers</div>
+    <div class="tab" onclick="rpTab('validations')">Validations</div>`;
+  rpTab('config');
+  document.getElementById('panel').classList.add('show');
+  document.getElementById('panel-overlay').classList.add('show');
+}
+
+function rpTab(tab){
+  document.querySelectorAll('#panel-tabs .tab').forEach(t=>{t.classList.toggle('active',t.textContent.toLowerCase()===tab)});
+  const tc=document.getElementById('panel-content');
+  const r=currentReport;
+
+  if(tab==='fields'){
+    const fields=r.fields||[];
+    const types=['String','Integer','Decimal','Percentage','Date','Datetime'];
+    const rows=fields.map((f,i)=>`<tr data-idx="${i}">
+      <td style="color:#484f58">${i+1}</td>
+      <td><input class="inline-inp f-edit" data-field="display_name" value="${(f.display_name||'').replace(/"/g,'&quot;')}"></td>
+      <td><input class="inline-inp f-edit" data-field="template_ref" value="${(f.template_ref||'').replace(/"/g,'&quot;')}" style="width:100px"></td>
+      <td><select class="inline-sel f-edit" data-field="data_type">${types.map(t=>`<option${t===f.data_type?' selected':''}>${t}</option>`).join('')}</select></td>
+      <td style="text-align:center"><input type="checkbox" class="f-edit" data-field="allow_null" ${f.allow_null!==false?'checked':''}></td>
+      <td style="text-align:center"><input type="checkbox" class="f-edit" data-field="is_aggregate" ${f.is_aggregate?'checked':''}></td>
+      <td><button onclick="deleteField(${i})" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:13px;opacity:0.4" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button></td>
+    </tr>`).join('');
+    tc.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>Display Name</th><th>Template Ref</th><th>Type</th><th>Null</th><th>Agg</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <button class="add-btn" onclick="addField()">+ Add Field</button>`;
+
+  }else if(tab==='slicers'){
+    const slicers=r.slicers||[];
+    const rows=slicers.map((s,i)=>`<tr>
+      <td style="color:#484f58">${i+1}</td>
+      <td><input class="inline-inp sl-edit" data-idx="${i}" data-field="name" value="${(s.name||'').replace(/"/g,'&quot;')}"></td>
+      <td style="text-align:center"><input type="checkbox" class="sl-edit" data-idx="${i}" data-field="required" ${s.required?'checked':''}></td>
+      <td><button onclick="deleteSlicer(${i})" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:13px;opacity:0.4" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button></td>
+    </tr>`).join('');
+    tc.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>Slicer Name</th><th>Required</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <button class="add-btn" onclick="addSlicer()">+ Add Slicer</button>`;
+
+  }else if(tab==='validations'){
+    const cfv=r.cross_field_validations||[];
+    let html='<div class="section"><div class="section-title">Cross-Field Validations</div>';
+    cfv.forEach((v,i)=>{
+      const rule=v.rule||v.field||'';
+      const sev=v.severity||v.op||'';
+      html+=`<div class="rule-row">
+        <input class="inline-inp" value="${String(rule).replace(/"/g,'&quot;')}" style="flex:1" onblur="updateValidation(${i},'rule',this.value)">
+        <select class="inline-sel" onchange="updateValidation(${i},'severity',this.value)"><option${sev==='error'?' selected':''}>error</option><option${sev==='warning'?' selected':''}>warning</option></select>
+        <button onclick="deleteValidation(${i})" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:13px;opacity:0.4" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button>
+      </div>`;
+    });
+    html+=`<button class="add-btn" onclick="addValidation()">+ Add Validation</button></div>`;
+    tc.innerHTML=html;
+
+  }else if(tab==='config'){
+    const ck=r.composite_key||[];
+    const ff=r.fixed_filters||[];
+    const dedup=r.deduplication||{};
+    const sb=r.sort_by||[];
+    let html='<div class="section">';
+    html+=`<div class="section-title">Base Table</div><div style="margin-bottom:16px"><input class="inline-inp" id="cfg-base" value="${(r.base_table||'').replace(/"/g,'&quot;')}" style="width:250px" onblur="saveConfig()"></div>`;
+    html+=`<div class="section-title">Composite Key <span style="color:#484f58;font-size:11px;font-weight:400">(comma-separated)</span></div><div style="margin-bottom:16px"><input class="inline-inp" id="cfg-ck" value="${ck.join(', ')}" style="width:100%" onblur="saveConfig()"></div>`;
+    html+=`<div class="section-title">Fixed Filters</div>`;
+    ff.forEach((f,i)=>{
+      html+=`<div style="display:flex;gap:8px;padding:3px 0"><input class="inline-inp ff-inp" value="${String(f).replace(/"/g,'&quot;')}" style="flex:1" onblur="saveFilters()"><button onclick="deleteFilter(${i})" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:13px;opacity:0.4" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button></div>`;
+    });
+    html+=`<button class="add-btn" style="margin:8px 0" onclick="addFilter()">+ Add Filter</button>`;
+    html+=`<div class="section-title" style="margin-top:16px">Deduplication</div>`;
+    html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div><label style="font-size:11px;color:#484f58">Method</label><input class="inline-inp" id="ded-method" value="${(dedup.method||'').replace(/"/g,'&quot;')}" onblur="saveDedup()"></div>
+      <div><label style="font-size:11px;color:#484f58">Filter</label><input class="inline-inp" id="ded-filter" value="${(dedup.filter||'').replace(/"/g,'&quot;')}" onblur="saveDedup()"></div>
+    </div>`;
+    html+=`<div><label style="font-size:11px;color:#484f58">Partition By (comma-separated)</label><input class="inline-inp" id="ded-partition" value="${(dedup.partition_by||[]).join(', ')}" style="width:100%" onblur="saveDedup()"></div>`;
+    html+=`<div class="section-title" style="margin-top:16px">Sort By</div>`;
+    sb.forEach((s,i)=>{
+      html+=`<div style="display:flex;gap:8px;padding:3px 0"><input class="inline-inp sb-col" data-idx="${i}" value="${(s.column||'').replace(/"/g,'&quot;')}" style="flex:1" onblur="saveSortBy()"><select class="inline-sel sb-dir" data-idx="${i}" onchange="saveSortBy()"><option${s.direction==='ASC'?' selected':''}>ASC</option><option${s.direction==='DESC'?' selected':''}>DESC</option></select><button onclick="deleteSortBy(${i})" style="background:none;border:none;color:#f85149;cursor:pointer;font-size:13px;opacity:0.4" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button></div>`;
+    });
+    html+=`<button class="add-btn" style="margin:8px 0" onclick="addSortBy()">+ Add Sort</button>`;
+    html+='</div>';
+    tc.innerHTML=html;
+  }
+}
+
+// Auto-save
+document.addEventListener('change',e=>{if(e.target.classList.contains('f-edit'))saveFields()});
+document.addEventListener('blur',e=>{if(e.target.classList.contains('f-edit'))saveFields()},true);
+document.addEventListener('change',e=>{if(e.target.classList.contains('sl-edit'))saveSlicers()});
+document.addEventListener('blur',e=>{if(e.target.classList.contains('sl-edit'))saveSlicers()},true);
+
+function saveFields(){
+  const fields=[];
+  document.querySelectorAll('tr[data-idx]').forEach(row=>{
+    const f={};
+    row.querySelectorAll('.inline-inp.f-edit,.inline-sel.f-edit').forEach(el=>{f[el.dataset.field]=el.value});
+    row.querySelectorAll('input[type=checkbox].f-edit').forEach(el=>{f[el.dataset.field]=el.checked});
+    if(f.display_name)fields.push(f);
+  });
+  currentReport.fields=fields;
+  fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{fields}})});
+}
+
+function saveSlicers(){
+  const map={};
+  document.querySelectorAll('.sl-edit').forEach(el=>{
+    const i=el.dataset.idx;
+    if(!map[i])map[i]={...currentReport.slicers[i]};
+    if(el.type==='checkbox')map[i][el.dataset.field]=el.checked;
+    else map[i][el.dataset.field]=el.value;
+  });
+  currentReport.slicers=Object.values(map);
+  fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{slicers:currentReport.slicers}})});
+}
+
+function addField(){currentReport.fields.push({display_name:'',template_ref:'',data_type:'String',allow_null:true});rpTab('fields')}
+function deleteField(i){currentReport.fields.splice(i,1);saveFieldsFull();rpTab('fields')}
+function saveFieldsFull(){fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{fields:currentReport.fields}})})}
+function addSlicer(){currentReport.slicers.push({name:'',required:false});rpTab('slicers')}
+function deleteSlicer(i){currentReport.slicers.splice(i,1);fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{slicers:currentReport.slicers}})});rpTab('slicers')}
+function updateValidation(i,f,v){currentReport.cross_field_validations[i][f]=v;fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{cross_field_validations:currentReport.cross_field_validations}})})}
+function deleteValidation(i){currentReport.cross_field_validations.splice(i,1);fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{cross_field_validations:currentReport.cross_field_validations}})});rpTab('validations')}
+function addValidation(){if(!currentReport.cross_field_validations)currentReport.cross_field_validations=[];currentReport.cross_field_validations.push({rule:'',severity:'error'});rpTab('validations')}
+
+function saveConfig(){
+  const base=document.getElementById('cfg-base').value;
+  const ck=document.getElementById('cfg-ck').value.split(',').map(s=>s.trim()).filter(Boolean);
+  currentReport.base_table=base;
+  currentReport.composite_key=ck;
+  fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{base_table:base,composite_key:ck}})});
+}
+function saveFilters(){
+  const ff=[...document.querySelectorAll('.ff-inp')].map(el=>el.value).filter(Boolean);
+  currentReport.fixed_filters=ff;
+  fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{fixed_filters:ff}})});
+}
+function addFilter(){if(!currentReport.fixed_filters)currentReport.fixed_filters=[];currentReport.fixed_filters.push('');rpTab('config')}
+function deleteFilter(i){currentReport.fixed_filters.splice(i,1);saveFilters();rpTab('config')}
+function saveDedup(){
+  const dedup={method:document.getElementById('ded-method').value,filter:document.getElementById('ded-filter').value,partition_by:document.getElementById('ded-partition').value.split(',').map(s=>s.trim()).filter(Boolean)};
+  currentReport.deduplication=dedup;
+  fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{deduplication:dedup}})});
+}
+function saveSortBy(){
+  const sb=[];
+  document.querySelectorAll('.sb-col').forEach(el=>{const i=el.dataset.idx;const dir=document.querySelector('.sb-dir[data-idx="'+i+'"]');sb.push({column:el.value,direction:dir?dir.value:'ASC',priority:parseInt(i)+1})});
+  currentReport.sort_by=sb;
+  fetch(API+'/api/reports/'+currentReportId+'/edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({report_id:currentReportId,updates:{sort_by:sb}})});
+}
+function addSortBy(){if(!currentReport.sort_by)currentReport.sort_by=[];currentReport.sort_by.push({column:'',direction:'ASC',priority:currentReport.sort_by.length+1});rpTab('config')}
+function deleteSortBy(i){currentReport.sort_by.splice(i,1);saveSortBy();rpTab('config')}
+
+async function panelSendChat(){
+  const inp=document.getElementById('panel-chat');
+  const msg=inp.value.trim();if(!msg)return;
+  inp.value='';inp.placeholder='thinking...';
+  const d=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg+' for report '+currentReportId})}).then(r=>r.json());
+  inp.placeholder='Ask AI to modify...';
+  // Refresh
+  const resp=await fetch(API+'/api/reports/'+currentReportId);
+  currentReport=await resp.json();
+  rpTab('fields');
+  loadReports();
+}
+
+loadReports();
 </script>
 </body>
 </html>
